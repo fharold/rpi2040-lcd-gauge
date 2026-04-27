@@ -519,20 +519,14 @@ const uint8_t* stars[THEMES] = {cn16,flag_jp16,flag_kr16,usa16,ger16,tr16,flag_g
 
 // define number of backgrounds and backgrounds + extra data
 uint16_t* tbg = NULL;
-#ifdef DEVMODE
-  #define MAX_BG 3
-  const char* backgrounds[MAX_BG] = {e8,i8,b256};
-  const int16_t bg_size[MAX_BG] = {256,256,256};
-  const bool bg_dynamic[MAX_BG] = {true,true,true};
-#else
-  #define MAX_BG 8
-  const char* backgrounds[MAX_BG] = {e8,i8,b256,bega,sand,
-    //bg1_256,bg2_256,bg3_256, bg4_256,bg5_256,bg6_256
-    bg1_256,bg2_256,bg3_256, //bg4_256
-  };
-  const int16_t bg_size[MAX_BG] = {256,256,256,240,240,256,256,256};
-  const bool bg_dynamic[MAX_BG] = {true,true,true,false,false,false,false,false};
-#endif
+
+#define MAX_BG 8
+const char* backgrounds[MAX_BG] = {e8,i8,b256,bega,sand,
+  //bg1_256,bg2_256,bg3_256, bg4_256,bg5_256,bg6_256
+  bg1_256,bg2_256,bg3_256, //bg4_256
+};
+const int16_t bg_size[MAX_BG] = {256,256,256,240,240,256,256,256};
+const bool bg_dynamic[MAX_BG] = {true,true,true,false,false,false,false,false};
 
 
 #define TEXTURES 5
@@ -883,17 +877,6 @@ void check_save_data(){
     if(plosa->scandir>3){plosa->scandir = 0;}
     if(plosa->bender>1){plosa->bender = 0;}
     if(plosa->BRIGHTNESS > 100 || plosa->BRIGHTNESS <= 10)plosa->BRIGHTNESS = 30;
-    //plosa->pointerdemo = false;
-    //plosa->pstyle = PS_NORMAL;
-    //plosa->clock = true;
-    //plosa->spin = 0;
-    //plosa->texture = 0;
-    //plosa->configpos = 0;
-    //plosa->conf_pmin = 0;
-    //plosa->conf_phour = 0;
-    //plosa->rota = false;
-    //plosa->rotoz = false;
-    //rtc_set_datetime(&plosa->dt);
     printf("MODE:='%s'\n",plosa->mode);
   }
 
@@ -2141,71 +2124,10 @@ void wtest(){
   W* w;
   wn_background = wadd_none(&wroot,draw_background);
   wn_drawclockhands = wadd_none(&wroot,draw_clock_hands);
-
-  #define TIME_X 40
-  #define TIME_Y 140
-  w_timed0 = wadd_text(&wroot,TIME_X+2*f40[0]->w-10,TIME_Y-2,f40[0]->w<<1,f40[0]->h,":",f40,WHITE,BLACK,BLACK,0,0,0);
-  wset_st(w_timed0,st_text_ghost);
-  w_timed1 = wadd_text(&wroot,TIME_X+4*f40[0]->w-2,TIME_Y-2,f40[0]->w<<1,f40[0]->h,":",f40,WHITE,BLACK,BLACK,0,0,0);
-  wset_st(w_timed1,st_text_ghost);
-  w_hour = wadd_text(&wroot,TIME_X,TIME_Y,f40[0]->w<<1,f40[0]->h,b_hour,f40,WHITE,BLACK,BLACK,0,0,0);
-  w_min = wadd_text(&wroot,TIME_X+2*f40[0]->w+8,TIME_Y,f40[0]->w<<1,f40[0]->h,b_min,f40,WHITE,BLACK,BLACK,0,0,0);
-  w_sec = wadd_text(&wroot,TIME_X+4*f40[0]->w+16,TIME_Y,f40[0]->w<<1,f40[0]->h,b_sec,f40,WHITE,BLACK,BLACK,0,0,0);
-
-
-
-  #define DATE_X 50
-  #define DATE_Y 64
-
-  //wb_date = wadd_box(&wroot,DATE_X,DATE_Y,9*f24[0]->w,f24[0]->h);
-  w_dated0 = wadd_text(&wroot,DATE_X+2*f24[0]->w-8,DATE_Y,f24[0]->w<<1,f24[0]->h,".",f24,WHITE,BLACK,BLACK,0,0,0);
-  wset_st(w_dated0,st_text_ghost);
-  w_dated1 = wadd_text(&wroot,DATE_X+4*f24[0]->w,DATE_Y,f24[0]->w<<1,f24[0]->h,".",f24,WHITE,BLACK,BLACK,0,0,0);
-  wset_st(w_dated1,st_text_ghost);
-  w_day = wadd_text(&wroot,DATE_X,DATE_Y,f24[0]->w<<1,f24[0]->h,b_day,f24,WHITE,BLACK,BLACK,0,0,0);
-  w_month = wadd_text(&wroot,DATE_X+2*f24[0]->w+8,DATE_Y,f24[0]->w<<1,f24[0]->h,b_month,f24,WHITE,BLACK,BLACK,0,0,0);
-  w_year = wadd_text(&wroot,DATE_X+4*f24[0]->w+16,DATE_Y,f24[0]->w<<2,f24[0]->h,b_year,f24,WHITE,BLACK,BLACK,0,0,0);
-
-
-  wb_dotw = wadd_box(&wroot,0,0,239,239);
-  w_dotw_cn = wadd_textr(wb_dotw,POS_CNDOW_X, POS_CNDOW_Y,(f32[2])->w,(f32[2])->h*3,get_dotw_cn,f32,CN_Red,BLACK,BLACK,0,2,1);
-  wset_st(w_dotw_cn,st_text_cn);
-  whide(w_dotw_cn);
-  w_dotw = wadd_textr(wb_dotw,POS_DOW_X, POS_DOW_Y,(f40[0])->w*3,(f40[0])->h,get_dotw,f40,WHITE,BLACK,BLACK,0,0,0);
-
   img_center = wadd_imager(&wroot,get_theme_image,120-16,120-16,32,32);
-  img_config = wadd_image(&wroot,(uint16_t*)config,240-(32+16),120-16,32,32);
   wblinker = wadd_blinker(&wroot,120,120,24,24,5,RED,BLUE,5,false);
   whide(wblinker);
-  wblinkerg = wadd_blinker(&wroot,120,120,24,24,5,GREEN,GBLUE,5,false);
-  whide(wblinkerg);
-  wblinker_once = wadd_blinker(&wroot,120,120,24,24,5,ORANGE,YELLOW,3,false);
-  whide(wblinker_once);
 
-  wsp_dotw = wadd_spinner(&wroot,130-((f40[0])->w>>1),120-((3* (f40[0])->h)>>1),3* (f40[0])->w+8,3* (f40[0])->h+8,
-            st_spinner_char_v,plosa->dt.dotw, 7, (void**)NULL,get_dotw_all, f40, 0, WHITE, BLACK, BLUE);
-  whide(wsp_dotw);
-  wsp_dotw_cn = wadd_spinner(&wroot,120-((f40[2])->w>>1),120-((3* (f40[2])->h)>>1),3* (f40[2])->w+8,3* (f40[2])->h,
-            st_spinner_char_h,plosa->dt.dotw, 7, (void**)NULL,get_dotw_all, f40, 2, WHITE, BLACK, BLUE);
-  whide(wsp_dotw_cn);
-  wsp_day = wadd_spinner(&wroot,130-((f40[0])->w>>1),120-((3* (f40[0])->h)>>1),2* (f40[0])->w+8,3* (f40[0])->h+8,
-            st_spinner_char_v,plosa->dt.day-1, last[plosa->dt.month], (void**)numbers+1, NULL, f40, 0, WHITE, BLACK, BLUE);
-  whide(wsp_day);
-  wsp_month = wadd_spinner(&wroot,130-((f40[0])->w>>1),120-((3* (f40[0])->h)>>1),2* (f40[0])->w+8,3* (f40[0])->h+8,
-            st_spinner_char_v,plosa->dt.month, 12 , (void**)numbers+1, NULL, f40, 0, WHITE, BLACK, BLUE);
-  whide(wsp_month);
-  wsp_year = wadd_spinner(&wroot,130-((f40[0])->w>>1),120-((3* (f40[0])->h)>>1),2* (f40[0])->w+8,3* (f40[0])->h+8,
-            st_spinner_char_v,plosa->dt.year-2000, 100 , (void**)numbers, NULL, f40, 0, WHITE, BLACK, BLUE);
-  whide(wsp_year);
-  wsp_hour = wadd_spinner(&wroot,130-((f40[0])->w>>1),120-((3* (f40[0])->h)>>1),2* (f40[0])->w+8,3* (f40[0])->h+8,
-            st_spinner_char_v,plosa->dt.hour, 24, (void**)hours, NULL, f40, 0, WHITE, BLACK, BLUE);
-  whide(wsp_hour);
-  wsp_min = wadd_spinner(&wroot,130+((f40[0])->w>>1),120-((3* (f40[0])->h)>>1),2* (f40[0])->w+8,3* (f40[0])->h+8,
-            st_spinner_char_v,plosa->dt.min, 60, (void**)numbers, NULL, f40, 0, WHITE, BLACK, BLUE);
-  whide(wsp_min);
-  wsp_sec = wadd_spinner(&wroot,130+((f40[0])->w>>1),120-((3* (f40[0])->h)>>1),2* (f40[0])->w+8,3* (f40[0])->h+8,
-            st_spinner_char_v,plosa->dt.sec, 60, (void**)numbers, NULL, f40, 0, WHITE, BLACK, BLUE);
-  whide(wsp_sec);
   //cim_flags = wcim_make(THEMES,0);
   //wb_time = wadd_box(&wroot,TIME_X,TIME_Y,7*f40[0]->w,f40[0]->h);
   int16_t maxcd = (int16_t)(DEGS/THEMES);
