@@ -34,19 +34,6 @@ void draw_doimage(DOImage* doi){
 void draw_dotexture(DOTexture* doi, uint16_t deg){
   lcd_blit_deg(doi->vpos,doi->vs,doi->vts,deg,doi->data,doi->alpha,false);
 }
-void draw_pointer_mode(Vec2 vs, Vec2 vts, int16_t tu, uint16_t color, const uint8_t* sr, uint16_t alpha, PSTYLE cps){
-  switch(cps){
-    case PS_NORMAL:
-      lcd_line_deg(vO, tu, vs.x, color, vs.y);
-      break;
-    case PS_ALPHA:
-      lcd_alpha_line_deg(vO, tu, vs.x, color, vs.y);
-      break;
-    case PS_TEXTURE:
-      lcd_blit_deg(vO,vs,vts,tu,sr,alpha,false);
-      break;
-    case PS_BENDER:
-      lcd_blit_deg(vO,vs,vts,90,sr,alpha,true);
-      break;
-  };
+void draw_pointer_mode(Vec2 vs, int16_t tu, uint16_t color){
+  lcd_line_deg(vO, tu, vs.x, color, vs.y);
 }

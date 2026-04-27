@@ -35,7 +35,7 @@ typedef struct {
 
 DOImage* DOImage_newv2(  Vec2 vpos,  Vec2 vs,  uint16_t alpha,  const uint8_t* data);
 DOImage* DOImage_new(int16_t x, int16_t y, int16_t x1, int16_t y1,  uint16_t alpha,  const uint8_t* data);
-void draw_pointer_mode(Vec2 vs, Vec2 vts, int16_t tu, uint16_t color, const uint8_t* sr, uint16_t alpha, PSTYLE cps);
+void draw_pointer_mode(Vec2 vs, int16_t tu, uint16_t color);
 void draw_dotex(DOTexture* doi);
 void draw_doimage(DOImage* doi);
 
