@@ -30,64 +30,15 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 #include "lib/draw.h"
 #include "QMI8658.h"
 #include "CST816S.h"
-#include "img/font34.h"
-#include "img/font40.h"
-//#include "img/font48.h"
-#include "img/fa32.h"
-#include "img/fa40.h"
-#include "img/fkyr32.h"
-#include "img/fkyr40.h"
-#include "img/fei24.h"
-#include "img/fei32.h"
-#include "img/fei40.h"
-
-#include "img/e8.h"
-#include "img/i8.h"
-
 #include "img/bega.h"
-
-//#include "img/maple.h"
-#include "img/cn32.h"
-#include "img/cn16.h"
-#include "img/flag_jp16.h"
-#include "img/flag_jp32.h"
-#include "img/flag_kr16.h"
-#include "img/flag_kr32.h"
-#include "img/usa32.h"
-#include "img/usa16.h"
-#include "img/ger32.h"
-#include "img/ger16.h"
-#include "img/tr32.h"
-#include "img/tr16.h"
-#include "img/flag_gb16.h"
-#include "img/flag_gb32.h"
-#include "img/flag_ch16.h"
-#include "img/flag_ch32.h"
-#include "img/flag_hr16.h"
-#include "img/flag_hr32.h"
-#include "img/flag_ru16.h"
-#include "img/flag_ru32.h"
-#include "img/flag_ua16.h"
-#include "img/flag_ua32.h"
-
-#include "img/config.h"
-//#include "img/conf_accept.h"
-#include "img/conf_exit.h"
-#include "img/conf_background.h"
-#include "img/conf_handstyle.h"
-#include "img/conf_rotate.h"
-#include "img/conf_save.h"
-#include "img/conf_clock.h"
-#include "img/conf_bender.h"
+#include "img/font34.h"//touche pas à ça petit con
+#include "img/font40.h"//touche pas à ça petit con
+//#include "img/font48.h"
 
 // Tested with the parts that have the height of 240 and 320
 #define SCREEN_WIDTH 240
 #define SCREEN_HEIGHT 240
-#define SCREEN_WIDTH2 120
-#define SCREEN_HEIGHT2 120
 #define SCREEN_SIZE (SCREEN_WIDTH*SCREEN_HEIGHT)
-#define IMAGE_SIZE 256
-#define LOG_IMAGE_SIZE 8
 #define SERIAL_CLK_DIV 1.f
 #define UNIT_LSB 16
 
@@ -97,23 +48,12 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 
 #define THETA_MAX (2.f * (float) M_PI)
 
-
 typedef struct {
-  char mode[8];
   uint8_t BRIGHTNESS;
-
-  bool sensors;
-  bool gyrocross;
-  bool bender;
   uint8_t scandir;
-  bool dither;
-  uint8_t dummy;
-  uint8_t save_crc;
 } LOSA_t;
 
 static LOSA_t* plosa=(LOSA_t*)losabuf;
-
-#define LOSASIZE (&plosa->dummy - &plosa->theme)
 
 char* fp_cn = NULL;
 
@@ -125,45 +65,8 @@ bool center_enabled = false;
 W* wn_background = NULL;
 W* wn_content = NULL;
 W* wn_drawclockhands = NULL;
-W* img_center = NULL;
-W* img_config = NULL;
-W* wblinker = NULL;
-W* wblinkerg = NULL;
-W* wblinker_once = NULL;
-W* wblinker_ref = NULL;
-
-W* w_dotw = NULL;
-W* w_dotw_cn = NULL;
-W* wsp_dotw = NULL;
-W* wsp_dotw_cn = NULL;
-
-W* cim_flags = NULL;
-W* cim_config = NULL;
 
 W* wl[1] = {NULL};
-
-W* wb_dotw; //day of the week content box (lat/cn)
-
-WBez2_t* w_move = NULL;
-
-bool showfps = false;
-uint16_t fps = 0;
-uint8_t fps_sec = 0;
-
-
-#define MAX_CONF 8
-#define MAX_CONFD (360/MAX_CONF)
-#define MAX_FCONF 4
-#define MAX_FCONFD (360/MAX_CONF)
-
-#define MAX_SPIN 8
-#define MAX_FSPIN (0.005f*8)
-
-//forward decs [4WARD]
-uint8_t crc(uint8_t *addr, uint32_t len);
-void dosave();
-
-void* config_functions[MAX_CONF];
 
 //adc_read()
 
@@ -228,8 +131,6 @@ typedef enum {
   CP_WAND,
   CP_PENCIL=7,
 } CONF_POS;
-
-const uint8_t* config_images[MAX_CONF+1] = {conf_exit,conf_background,conf_rotate,conf_save,conf_handstyle,conf_clock,conf_bender};
 
 float theta = 0.0f;
 float theta1 = 0.0f;
@@ -314,29 +215,10 @@ bool clk,dt,sw,oclk,odt,osw;
 int gc=0;
 char gch;
 char gbuf[2] = {'c','d'};
-uint32_t last_wait;
-uint32_t stime;
-uint8_t tseco;
-
-int blink_counter = 0;
-bool bmode = false;
-
-uint32_t last_blink;
-
-extern float tsin[DEGS];
-extern float tcos[DEGS];
-
-bool edittime=false;
-bool changetime=false;
-
-// config symbol
-DOImage* doi_config;
 
 unsigned int tim_count = 0;
 float last_z = 0.0f;
 
-uint16_t cn_chars=0;
-char ftst[128*4] = {0};
 uint32_t ftid[128] = {0};
 uint32_t ftid_kyr = 0;
 uint32_t ftidi = 0;
@@ -347,44 +229,6 @@ uint16_t ftstik = 0;
 bool do_reset = false;
 bool force_no_load = false;
 bool is_flashed = false;
-char crcstatus[32] = {"\0"};
-char flashstatus[32] = {"\0"};
-
-void __no_inline_not_in_flash_func(flash_data_load)(){
-	uint32_t xip_offset = 0xb0000;
-	char *p = (char *)XIP_BASE+xip_offset;
-	for(size_t i=0;i<FLASH_SECTOR_SIZE;i++){ losabuf[i]=p[i];	}
-}
-
-void __no_inline_not_in_flash_func(flash_data)(){
-	printf("FLASHING SAVE (c%d)\n",get_core_num());
-	uint32_t xip_offset = 0xb0000;
-	char *p = (char *)XIP_BASE+xip_offset;
-	uint32_t ints = save_and_disable_interrupts();
-	flash_range_erase (xip_offset, FLASH_SECTOR_SIZE);
-	flash_range_program (xip_offset, (uint8_t*)losabuf, FLASH_SECTOR_SIZE);
-	for(size_t i=0;i<FLASH_SECTOR_SIZE;i++){ losabuf[i]=p[i];	}
-	restore_interrupts(ints);
-  //sleep_ms(500);
-	printf("FLASHED!\n");
-
-}
-
-uint8_t crc(uint8_t *addr, uint32_t len){
-    uint8_t crc = 0;
-    while (len != 0){
-        uint8_t i;
-        uint8_t in_byte = *addr++;
-        for (i = 8; i != 0; i--){
-            uint8_t carry = (crc ^ in_byte ) & 0x80;        /* set carry */
-            crc <<= 1;                                      /* left shift 1 */
-            if (carry != 0){                crc ^= 0x7;            }
-            in_byte <<= 1;                                  /* left shift 1 */
-        }
-        len--;                                              /* len-- */
-  }
-  return crc;                                               /* return crc */
-}
 
 void draw_pointer(Vec2 vs, Vec2 vts, int16_t tu, uint16_t color, const uint8_t* sr, uint16_t alpha){
   draw_pointer_mode(vs,tu,YELLOW);
@@ -416,150 +260,6 @@ void i2c_scan(){
 	}
 }
 
-uint16_t to_rgb565(uint8_t r,uint8_t g,uint8_t b){
-  r>>=3;
-  g>>=2;
-  b>>=3;
-  return ((r<<11)+(g<<5)+b);
-}
-
-uint16_t rgb565(uint8_t r, uint8_t g, uint8_t b){
-  return ((r<<11)+(g<<5)+b);
-}
-
-void to_rgb(uint16_t rgb, uint8_t* r, uint8_t* g, uint8_t* b){
-  *r=((rgb>>11)&0x1f)<<3;
-  *g=((rgb>>5)&0x3f)<<3;
-  *b=(rgb&0x1f)<<3;
-}
-
-inline uint32_t get_ac(char** p){
-  char n;
-  uint32_t r=0;
-  char* pc=*p;
-  n=*pc;
-  //printf("pc=%08x %02x ",pc,*pc);
-  if(     (0b11000000&n)==0b10000000){ r= n; *p+=1;}
-  else if((0b11100000&n)==0b11000000){ r= (pc[0]<<8) + pc[1]; *p+=2;}
-  else if((0b11110000&n)==0b11100000){ r= (pc[0]<<16)+(pc[1]<<8) +pc[2]; *p+=3;}
-  else if((0b11111000&n)==0b11110000){ r= (pc[0]<<24)+(pc[1]<<16)+(pc[2]<<8)+pc[3]; *p+=4;}
-  //printf("%08x -> pc=%08x\n",r,*p);
-  return r;
-}
-
-uint8_t get_acid(char** p){
-  char** pt = p;
-  uint32_t r = get_ac(pt);
-  for(uint8_t i=0;i<ftidi;++i){
-    if(ftid[i]==r)return i+1;
-  }
-  return 0;
-}
-
-uint32_t find_ac(uint32_t c){
-  for(uint32_t i=0;i<ftidi;++i){ if(ftid[i]==c)return i; }
-  return 0xffffffff;
-}
-void convert_as(char* source, char* target){
-  uint32_t si=0, ti=0;
-  printf("c_as: '%s'\n",source);
-  while(*source){target[ti++]=get_acid(&source);}
-  target[ti]=0;
-  printf("convert_as: ");
-  for(int i=0;i<ti;++i){
-    if(target[i]>=ftid_kyr)target[i]-=ftid_kyr;
-    printf("%02x ",target[i]);
-  }
-  printf("\n");
-}
-
-uint8_t find_cc(uint8_t a, uint8_t b, uint8_t c){
-  uint fo=0;
-  for(int i=0; i<cn_chars+1;i++){
-    if( (ftst[fo+0]==a) && (ftst[fo+1]==b) && (ftst[fo+2]==c) ){ return i; }
-    fo+=4;
-  }
-}
-void convert_cs(char* source, char* target){
-  uint32_t si=0, ti=0;
-  while(source[si]){
-    target[ti]=find_cc(source[si],source[si+1],source[si+2]);
-    si+=3;
-    target[ti]+=(256-32);
-    ++ti;
-    target[ti]+='\n';
-  }
-  target[ti]=0;
-}
-
-void print_font_table4(char* pc){
-  uint8_t fts=0;
-  uint8_t n=0;
-  uint8_t nbytes=0;
-  uint32_t ft[128];
-  uint32_t sti=0;
-  char ftc[5] = {0};
-  printf("symcheck1\n");
-  uint32_t c = 0;
-  while(*pc){
-    ft[fts]=get_ac(&pc);
-    bool dupe=false;
-    for(int j=0;j<fts;j++){
-      if(ft[j]==ft[fts]){dupe=true;break;}
-    }
-    if(!dupe){++fts;}
-  }
-  uint32_t i,k;
-  uint32_t temp;
-  n=fts;
-  for(i = 0; i<n-1; i++) {
-    for(k = 0; k<n-1-i; k++) {
-      if(ft[k] > ft[k+1]) {
-        temp = ft[k];
-        ft[k] = ft[k+1];
-        ft[k+1] = temp;
-      }
-    }
-  }
-  for(i=0;i<fts;++i){    printf("1: (%02d) %08x\n",i,ft[i]);  }
-  char* ppc = (char*)&ft[0];
-  sti=0;
-  char cls[512] = {0};
-  uint32_t clsi = 0;
-  for(i=0;i<fts;i++){
-    //printf("%02d : %d %02x %02x %02x %02x\n",i,ft[i],pc[0],pc[1],pc[2],pc[3]);
-    ftc[0]=ppc[3];
-    ftc[1]=ppc[2];
-    ftc[2]=ppc[1];
-    ftc[3]=ppc[0];
-    printf("S1[%02d]: %02x %02x %02x %02x %s\n",i,ftc[0],ftc[1],ftc[2],ftc[3],&ftc[1]);
-    cls[clsi+0]=ftc[1];
-    cls[clsi+1]=ftc[2];
-    cls[clsi+2]=ftc[3];
-    clsi+=3;  //ftid[ftidi++]=(uint32_t)ftc[0]<<24+ftc[1]<<16+ftc[2]<<8+ftc[3];
-    ftid[ftidi++]=(uint32_t)ft[i];
-    ppc+=4;
-  }
-  if(!cn_chars){
-    //ftst[ftsti]=0;
-    cls[clsi]=0;
-    cn_chars=fts;
-  }
-  printf("CHARLIST:\n%s (%d)\n\n\n",cls,strlen(cls));
-  char* clst = &cls[0];
-  while(*clst){
-    printf("B %08x 0x%02x\n",clst,get_acid(&clst));
-  }
-
-}
-
-#define MS 1000
-#define US 1000000
-#define BUTD 500  // delay between possible button presses (default: 500, half of a second)
-#define REBOOT US*3 // 30 second/10
-uint32_t rebootcounter = 0;
-uint32_t rebootcounterold = 0;
-
 void gpio_callback(uint gpio, uint32_t events) {
 }
 
@@ -574,29 +274,6 @@ void draw_clock_hands(){
 void draw_background()
 {
   mcpy(b0,bega,LCD_SZ);
-}
-
-void draw_gfx(){
-  uint8_t x1,y1,xt,yt;
-  uint8_t x0=120;
-  uint8_t y0=120;
-    
-  int xi,yi;
-  Vec2 vc_s,vc_e;
-  float scf = DEGS/360.0f;
-  float mindeg = 1024.0f/60.0f;
-  for(int16_t i=0;i<60;i++){
-    vc_e = gvdl((int16_t)i*mindeg,119);
-    vc_e = vadd(vc_e,vO);
-    if(!(i%5)){
-      vc_s = gvdl((int16_t)i*mindeg,110);
-      vc_s = vadd(vc_s,vO);
-      // lcd_linev2(vc_s,vc_e, null, 1);
-    }else{
-      vc_s = gvdl((int16_t)i*mindeg,115);
-      vc_s = vadd(vc_s,vO);
-    }
-  }
 }
 
 int main(void)
@@ -660,12 +337,12 @@ int main(void)
 
     interp_config lane0_cfg = interp_default_config();
     interp_config_set_shift(&lane0_cfg, UNIT_LSB - 1); // -1 because 2 bytes per pixel
-    interp_config_set_mask(&lane0_cfg, 1, 1 + (LOG_IMAGE_SIZE - 1));
+    interp_config_set_mask(&lane0_cfg, 1, 1 + (8 - 1));
     interp_config_set_add_raw(&lane0_cfg, true); // Add full accumulator to base with each POP
     //interp_config_set_signed(&lane0_cfg, true);
     interp_config lane1_cfg = interp_default_config();
-    interp_config_set_shift(&lane1_cfg, UNIT_LSB - (1 + LOG_IMAGE_SIZE));
-    interp_config_set_mask(&lane1_cfg, 1 + LOG_IMAGE_SIZE, 1 + (2 * LOG_IMAGE_SIZE - 1));
+    interp_config_set_shift(&lane1_cfg, UNIT_LSB - (1 + 8));
+    interp_config_set_mask(&lane1_cfg, 1 + 8, 1 + (2 * 8 - 1));
     interp_config_set_add_raw(&lane1_cfg, true);
     //interp_config_set_signed(&lane1_cfg, true);
     interp_set_config(interp0, 0, &lane0_cfg);
