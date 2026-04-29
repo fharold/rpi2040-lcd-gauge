@@ -30,9 +30,12 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 #include "lib/draw.h"
 #include "QMI8658.h"
 #include "CST816S.h"
-#include "img/bega.h"
+#include "img/bg_trans_temp.h"
+#include "img/bg_gauge_oil_t.h"
+#include "img/bg_gauge_oil_p.h"
 #include "img/font34.h"//touche pas à ça petit con
 #include "img/font40.h"//touche pas à ça petit con
+#include "lib/draw.h"
 //#include "img/font48.h"
 
 // Tested with the parts that have the height of 240 and 320
@@ -46,12 +49,35 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 #define M_PI 3.14159265358979323846
 #endif
 
+#define DEG_TO_RAD(deg) ((float) deg * (float) M_PI / 180.f)
 #define THETA_MAX (2.f * (float) M_PI)
+
+#define NEEDLE_MAX_ANGLE 135.f
+#define NEEDLE_MIN_ANGLE 45.f
+#define NEEDLE_UPPER_LENGTH 135.f
+#define NEEDLE_LOWER_LENGTH 32.f
+
+#define MIN_TEMP 50.f
+#define MAX_TEMP 130.f
+
+#define MIN_PRESS -0.5f
+#define MAX_PRESS 6.5f
 
 W* wn_background = NULL;
 W* wn_content = NULL;
-W* wn_drawclockhands = NULL;
+W* wn_draw_needle_temp = NULL;
+W* wn_draw_needle_press = NULL;
 W* wl[1] = {NULL};
+
+#define MODE_OIL_P 0
+#define MODE_OIL_T 1
+#define MODE_TRANS_T 2
+#define CURRENT_MODE MODE_OIL_P
+
+typedef struct {
+  Vec2 start;
+  Vec2 end;
+} NeedlePos;
 
 //adc_read()
 
@@ -65,6 +91,8 @@ float theta1 = 0.0f;
 float theta2 = 0.0f;
 float theta3 = 0.0f;
 float theta_d = 1.2f;
+float current_pressure = 7.0f;
+int16_t current_temperature = 0;
 
 extern Vec2 vO;
 
@@ -83,6 +111,7 @@ uint32_t* b1=NULL;
 #define QMIINT1 23
 #define CBUT_TOUCH 16
 
+Vec2 center = {120, 195};
 uint8_t CBUT0 = 22;
 bool rp2040_touch = false;
 bool clk,dt,sw,oclk,odt,osw;
@@ -120,17 +149,61 @@ void i2c_scan(){
 void gpio_callback(uint gpio, uint32_t events) {
 }
 
-void draw_clock_hands(){
-  uint8_t x1,y1,xt,yt;
-  int xi,yi;
-  Vec2 dp0 = {102,10};
-  dp0 = vset(65,6);
-  draw_pointer_mode(dp0,90,RED);
+void draw_needle_temp(){
+  float angle_amplitude = NEEDLE_MAX_ANGLE - NEEDLE_MIN_ANGLE;
+  float temperature_amplitude = MAX_TEMP - MIN_TEMP;
+  float temp_difference = MAX(0.f, MIN(MAX(current_temperature, 0.f), MAX_TEMP) - MIN_TEMP);
+  float factor = temp_difference / temperature_amplitude;
+  float angle = NEEDLE_MIN_ANGLE + (angle_amplitude * factor);
+  float angle_deg = PI - DEG_TO_RAD(angle);
+  Vec2 upper_end;
+  Vec2 lower_end;
+
+  upper_end.x = center.x + (int)(NEEDLE_UPPER_LENGTH * cosf(angle_deg));
+  upper_end.y = center.y - (int)(NEEDLE_UPPER_LENGTH * sinf(angle_deg));
+
+  lower_end.x = center.x + (int)(NEEDLE_LOWER_LENGTH * cosf(angle_deg + PI));
+  lower_end.y = center.y - (int)(NEEDLE_LOWER_LENGTH * sinf(angle_deg + PI));
+  
+  draw_line(center, upper_end, RED, 6);
+  draw_line(center, lower_end, RED, 6);
+}
+
+void draw_needle_press(){
+  float angle_amplitude = NEEDLE_MAX_ANGLE - NEEDLE_MIN_ANGLE;
+  float pressure_amplitude = MAX_PRESS - MIN_PRESS;
+  float pressure_difference = MAX(0.f, MIN(MAX(current_pressure, 0.f), MAX_PRESS) - MIN_PRESS);
+  float factor = pressure_difference / pressure_amplitude;
+  float angle = NEEDLE_MIN_ANGLE + (angle_amplitude * factor);
+  float angle_deg = PI - DEG_TO_RAD(angle);
+  Vec2 upper_end;
+  Vec2 lower_end;
+
+  upper_end.x = center.x + (int)(NEEDLE_UPPER_LENGTH * cosf(angle_deg));
+  upper_end.y = center.y - (int)(NEEDLE_UPPER_LENGTH * sinf(angle_deg));
+
+  lower_end.x = center.x + (int)(NEEDLE_LOWER_LENGTH * cosf(angle_deg + PI));
+  lower_end.y = center.y - (int)(NEEDLE_LOWER_LENGTH * sinf(angle_deg + PI));
+  
+  draw_line(center, upper_end, RED, 6);
+  draw_line(center, lower_end, RED, 6);
 }
 
 void draw_background()
 {
-  mcpy(b0,bega,LCD_SZ);
+  switch (CURRENT_MODE) {
+    case MODE_OIL_P:
+    mcpy(b0,bg_gauge_oil_p,LCD_SZ);
+    break;
+
+    case MODE_OIL_T:
+    mcpy(b0,bg_gauge_oil_t,LCD_SZ);
+    break;
+
+    case MODE_TRANS_T:
+    mcpy(b0,bg_trans_temp,LCD_SZ);
+    break;
+  }
 }
 
 int main(void)
@@ -159,7 +232,7 @@ int main(void)
 
   i2c_scan();
   lcd_init();
-  lcd_set_brightness(10);
+  lcd_set_brightness(255);
   b0 = malloc(LCD_SZ);
   b1 = (uint32_t*)b0;
   if(b0==0){printf("b0==0!\n");}
@@ -188,12 +261,29 @@ int main(void)
 
   init_root();
   wn_background = wadd_none(&wroot,draw_background);
-  wn_drawclockhands = wadd_none(&wroot,draw_clock_hands);
-
+  if (CURRENT_MODE == MODE_OIL_P) {
+    wn_draw_needle_press = wadd_none(&wroot,draw_needle_press);
+  } else {
+    wn_draw_needle_temp = wadd_none(&wroot,draw_needle_temp);
+  }
+  
   while(true){
     for(int i=0;i<LCD_SZ/4;i++){b1[i]=0x00;}  //clear buffer faster
     wdraw(&wroot);
     lcd_display(b0);
+    current_temperature++;
+
+    if (current_temperature > 150) {
+      current_temperature = -10;
+    }
+
+    // current_pressure = current_pressure + 0.1f;
+
+    if (current_pressure > 7.f) {
+      current_pressure = 0.f;
+    }
+
+    sleep_ms(10);
   }
   return 0;
 }

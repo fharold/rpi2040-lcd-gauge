@@ -38,5 +38,6 @@ DOImage* DOImage_new(int16_t x, int16_t y, int16_t x1, int16_t y1,  uint16_t alp
 void draw_pointer_mode(Vec2 vs, int16_t tu, uint16_t color);
 void draw_dotex(DOTexture* doi);
 void draw_doimage(DOImage* doi);
-
+void draw_line(Vec2 start, Vec2 end, uint16_t color, uint8_t thickness);
+void draw_line_deg(Vec2 start, uint16_t deg, int16_t l, uint16_t color, int16_t thickness);
 #endif

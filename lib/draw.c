@@ -37,3 +37,11 @@ void draw_dotexture(DOTexture* doi, uint16_t deg){
 void draw_pointer_mode(Vec2 vs, int16_t tu, uint16_t color){
   lcd_line_deg(vO, tu, vs.x, color, vs.y);
 }
+
+void draw_line_deg(Vec2 start, uint16_t deg, int16_t l, uint16_t color, int16_t thickness) {
+  lcd_line_deg(start, deg, l, color, thickness); 
+}
+
+void draw_line(Vec2 start, Vec2 end, uint16_t color, uint8_t thickness) {
+  lcd_line(start.x, start.y, end.x, end.y, color, thickness);
+}
