@@ -31,7 +31,6 @@ set(UNIVERSAL_GAUGES_SOURCES
   variant.c
   lib/draw.c
   w.c
-  CST816S.c
 )
 
 if (USE_DEMO)

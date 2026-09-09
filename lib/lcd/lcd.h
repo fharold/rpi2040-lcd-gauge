@@ -260,8 +260,4 @@ uint32_t lcd_get_ac(char** pc);
 void lcd_makeutf8table(char *c);
 extern uint8_t slice_num;
 
-/* Reset pin, 12 on the RP2040-LCD-1.28 and 13 on the RP2040-TOUCH-LCD-1.28.
-   Defined in lcd.c, adjusted at boot once the board is identified. */
-extern uint8_t LCD_RST_PIN;
-
 #endif //__GC9A01_H

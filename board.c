@@ -6,10 +6,6 @@
 #include "hardware/i2c.h"
 
 #include "lcd.h"
-#include "CST816S.h"
-
-bool    rp2040_touch = false;
-uint8_t CBUT0        = CBUT_PLAIN;
 
 /* Addresses the I2C spec reserves; probing them is meaningless. */
 static bool reserved_addr(uint8_t addr) {
@@ -66,12 +62,6 @@ void board_i2c_scan(void) {
       ret = i2c_read_blocking(I2C_PORT, addr, &rxdata, 1, false);
     }
 
-    if (ret >= 0 && addr == CST816_ADDR) {
-      rp2040_touch = true;
-      CBUT0        = CBUT_TOUCH;
-      LCD_RST_PIN  = 13;
-    }
-
     printf(ret < 0 ? "." : "@");
     printf(addr % 16 == 15 ? "\n" : "  ");
   }
@@ -84,8 +74,9 @@ void board_init_module_inputs(void) {
                                      GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL,
                                      true, &gpio_callback);
 
-  gpio_init(CBUT0);
-  gpio_set_dir(CBUT0, GPIO_IN);
-  gpio_pull_up(CBUT0);
-  gpio_set_irq_enabled(CBUT0, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
+  gpio_init(MODULE_BUTTON);
+  gpio_set_dir(MODULE_BUTTON, GPIO_IN);
+  gpio_pull_up(MODULE_BUTTON);
+  gpio_set_irq_enabled(MODULE_BUTTON,
+                       GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
 }

@@ -12,9 +12,9 @@ A small HAT enhances it:
 The firmware sources are in the repository root; the HAT itself is a KiCad
 project in `pcb/`, described in [The HAT board](#the-hat-board).
 
-Both the **RP2040-LCD-1.28** and the **RP2040-TOUCH-LCD-1.28** are supported:
-the touch controller is detected on the I2C bus at boot and the reset pin is
-adjusted accordingly, so the same `.uf2` runs on either board.
+The target is the **RP2040-LCD-1.28**. The touch variant is not supported: its
+user button sits on GP16, which the HAT uses for its first digital input, so
+the two would share one pin.
 
 ## Pinout
 
@@ -118,7 +118,7 @@ NPTH drill files. `pcb/rpi2040-lcd-gauge.csv` is the BOM.
 | `sensors.h`, `sensors.c` | ADC readings and their conversion to engineering units |
 | `gauge.h`, `gauge.c` | frame buffer, gauge face and needle |
 | `demo.h`, `demo.c` | the demo sweep, only compiled into a `USE_DEMO` build |
-| `w.c`, `CST816S.c`, `lib/` | widgets, drawing, display and touch, from picoclock |
+| `w.c`, `lib/` | widgets, drawing and display, from picoclock |
 
 ## Build variants
 

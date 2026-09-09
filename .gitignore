@@ -10,3 +10,5 @@ img/FreeMonoBold.ttf
 img/UbuntuMono-B.ttf
 .DS_Store
 .vscode/
+pcb/.history/
+pcb/~rpi2040-lcd-gauge.kicad_pcb.lck

@@ -7,6 +7,9 @@
   main.c is now the bring-up order and the main loop
 - the needle is clamped to the two ends of the gauge face instead of to zero,
   so the -0.5 to 0 bar part of the pressure scale is finally reachable
+- support for the RP2040-TOUCH-LCD-1.28 dropped, with the CST816S driver: its
+  button is on GP16, which the HAT uses as digital input 1. The board is now
+  the RP2040-LCD-1.28, the I2C scan is only a boot diagnostic
 - 'pilo' takes the demo targets as <variant>_demo, looks in build-demo/ as well
   as build/, and its stale-build check now covers every module, not just main.c
 - demo mode, off by default, built with cmake -DUSE_DEMO=ON: the needle sweeps

@@ -18,7 +18,6 @@
 
 #include "lcd.h"
 #include "QMI8658.h"
-#include "CST816S.h"
 
 #include "board.h"
 #include "config.h"
@@ -45,14 +44,11 @@ static void init(void) {
   board_init_gpio();
   sensors_init();
 
-  /* Before lcd_init(): the scan is what tells a touch board from a plain one,
-     and the reset pin differs between the two. */
   board_i2c_scan();
 
   lcd_init();
   gauge_init_display();
 
-  CST816S_init(CST816S_Gesture_Mode);
   board_init_module_inputs();
   QMI8658_init();
 
