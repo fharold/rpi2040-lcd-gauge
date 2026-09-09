@@ -1,115 +1,136 @@
-# picoclock
-GP20 : relay2_command_pin(output)
-GP19 : relay1_command_pin(output)
-GP18 : button_input(input, pull-up)
-GP28 : sensor1_filtered(analog input)
-GP27 : sensor2_filtered(analog input)
-GP16 : shifted_digital_in1
-GP17 : shifted_digital_in2
-GP26 : als_out(analog input)
+# universal_gauges
 
+Basic and versatile gauges based on the WAVESHARE RP2040-LCD-1.28 module.
+A small HAT enhances it:
 
-### WAVESHARE RP2040-LCD-1.28 / WAVESHARE RP2040-TOUCH-LCD-1.28
+- 2 analog inputs (sensor, filtered)
+- 2 digital inputs (level shifted)
+- 1 ambient light sensor
+- 1 button
+- 2 relay outputs
 
-![s_flag](https://github.com/dawigit/picoclock/blob/main/img/s_flag.png)
-![s_berry](https://github.com/dawigit/picoclock/blob/main/img/s_berry.png)
-![s_ru](https://github.com/dawigit/picoclock/blob/main/img/s_ru.png)
-![s_ua](https://github.com/dawigit/picoclock/blob/main/img/s_ua.png)
+Both the **RP2040-LCD-1.28** and the **RP2040-TOUCH-LCD-1.28** are supported:
+the touch controller is detected on the I2C bus at boot and the reset pin is
+adjusted accordingly, so the same `.uf2` runs on either board.
 
-![s_qdtm](https://github.com/dawigit/picoclock/blob/main/img/s_qdtm.png) ![s_rotozcy](https://github.com/dawigit/picoclock/blob/main/img/s_rotozcy.png) ![s_rotozg](https://github.com/dawigit/picoclock/blob/main/img/s_rotozg.png) ![s_rotozr](https://github.com/dawigit/picoclock/blob/main/img/s_rotozr.png)
-![s_bigfont](https://github.com/dawigit/picoclock/blob/main/img/s_bigfont.png) ![s_configicon_new](https://github.com/dawigit/picoclock/blob/main/img/s_configicon_new.png)
-![s_spinmin](https://github.com/dawigit/picoclock/blob/main/img/s_spinmin.png) ![s_spindotw](https://github.com/dawigit/picoclock/blob/main/img/s_spindotw.png) ![s_spindotw_cn](https://github.com/dawigit/picoclock/blob/main/img/s_spindotw_cn.png)
+## Pinout
 
+Signals added by the HAT:
 
-https://github.com/dawigit/picoclock/tree/main/img/ancestral#readme old images
+| GPIO | Signal | Direction |
+| ---- | ------ | --------- |
+| GP16 | shifted_digital_in1 | input |
+| GP17 | shifted_digital_in2 | input |
+| GP18 | button_input | input, pull-up |
+| GP19 | relay1_command_pin | output |
+| GP20 | relay2_command_pin | output |
+| GP26 | als_out | analog input, ADC0 |
+| GP27 | sensor2_filtered | analog input, ADC1 |
+| GP28 | sensor1_filtered | analog input, ADC2 |
 
-#### config (clock wise)
-- ![conf_exit](https://github.com/dawigit/picoclock/blob/main/img/conf_exit.png)  exit config
-- ![conf_background](https://github.com/dawigit/picoclock/blob/main/img/conf_background.png)	change background
-- ![conf_rotozoom](https://github.com/dawigit/picoclock/blob/main/img/conf_rotozoom.png)  enable rotozoom
-- ![conf_rotate](https://github.com/dawigit/picoclock/blob/main/img/conf_rotate.png)  rotate background [earth, eye]
-- ![conf_save](https://github.com/dawigit/picoclock/blob/main/img/conf_save.png)  save config to flash
-- ![conf_handstyle](https://github.com/dawigit/picoclock/blob/main/img/conf_handstyle.png)  change clock hand style [normal, alpha, textured]
-- ![conf_clock](https://github.com/dawigit/picoclock/blob/main/img/conf_clock.png)  change clock hand texture
-- ![conf_bender](https://github.com/dawigit/picoclock/blob/main/img/conf_bender.png)  dis-/enable second bender
+The RP2040 ADC channel is not the GPIO number: GP26 is ADC0, GP27 is ADC1,
+GP28 is ADC2, and GP29 (ADC3) is the module's own battery sense.
 
-![s_uscn](https://github.com/user-attachments/assets/149f43a9-c9dd-47f6-a785-b9cf913c84e9)
-![trde1](https://user-images.githubusercontent.com/26333559/196231689-c6d9e030-b088-4c9f-bef6-1a3cd4f5b1c6.png)
+Pins used by the module itself (display, I2C, IMU, backlight, battery) are
+defined in `lib/lcd/lcd.h`.
 
-#### Touch control (with RP2040-TOUCH-LCD-1.28)
+## Build variants
 
-#### The button is simply plugged into GND and GP22 (h2)
-#### With a button, attached the rp2040-lcd is controlled with the gyroscope
+The firmware is built in three variants, selected at compile time by
+`CURRENT_MODE`. One `cmake` + `make` builds all three:
 
-The images/fonts are in the ./img folder.
-The file 'img2data.md' contains shell scripts for converting image data and fonts into header files.
+| Variant | `CURRENT_MODE` | Gauge | Output |
+| ------- | -------------- | ----- | ------ |
+| engine oil temperature | `MODE_OIL_T` | 50-140 °C | `main_oil_t.uf2` |
+| gearbox oil temperature | `MODE_TRANS_T` | 50-140 °C | `main_trans_t.uf2` |
+| engine oil pressure | `MODE_OIL_P` | -0.5-6.5 bar | `main_oil_p.uf2` |
 
-#### Problems, bugs, tbd:
-- battery display has to be adjusted depending on battery type
+**The sensor is always wired to SENSOR1 (GP28), in every variant.** What the
+variant changes is the input span applied to that reading, the quantity it
+feeds, and the gauge face drawn behind the needle. SENSOR2 is not used by any
+variant; its pad is only configured as an analog input so it stays
+high-impedance.
 
-## To flash the image
+Each target is declared in `CMakeLists.txt` by the `universal_gauges_variant`
+function. Adding a variant means adding a `MODE_xxx` value in `main.c` and one
+call there.
 
-`sudo picotool load ./build/main.uf2 -x --bus 1 --address XX`
+### Calibration
 
-## To flash the image (touch)
+All in `main.c`. Input spans, in millivolts, measured at the ADC pin:
 
-`sudo picotool load ./uf2/rp2040-tlcd-128-watch.uf2 -x --bus 1 --address XX`
+| Define | Default | Meaning |
+| ------ | ------- | ------- |
+| `TEMP_SENSOR_MV_MIN` / `_MAX` | 640 / 2900 | temperature sensor output range |
+| `PRESSURE_SENSOR_MV_MIN` / `_MAX` | 250 / 2250 | pressure sensor output range |
+| `ALS_MV_MIN` / `_MAX` | 0 / 2700 | ambient light sensor output range |
 
+Display scales, in engineering units:
 
-Find the '--address' with:
+| Define | Default |
+| ------ | ------- |
+| `MIN_TEMP` / `MAX_TEMP` | 50 / 140 °C |
+| `MIN_PRESS` / `MAX_PRESS` | -0.5 / 6.5 bar |
 
-`picotool info`
+A reading below `_MIN` or above `_MAX` is clamped, not extrapolated. Change the
+mV values to match a different sensor; change the unit values only if the gauge
+face graduations change too.
 
+The ADC is read every `ADC_PERIOD_MS` (100 ms), oversampled `ADC_SAMPLES` (8)
+times per reading. The ambient light sensor drives the backlight between
+`MIN_BRIGHTNESS` and `MAX_BRIGHTNESS`.
 
 ## Building the image
 
-`cd picoclock;mkdir build;cd build;cmake ..;make`
+The Pico SDK is required, and CMake has to be able to find it:
 
-### commands:
-- 'circle 1' to enable dynamic circles [0 to disable]
-- and so on… the (boolean) values you can change between 0/1 are:
-- 'sensors'		[show/hide sensor text]
-- 'gyro'		  [show/hide gyrocross]
-- 'bender'		[second pointer elastic]
-- 'smooth'		[smoother/1frame delay for movement]
-- 'insomnia'	[no sleep/ screen always on]
-- 'circle'		[gyroscope changes circle, looks crappy atm]
-- 'high'		[highpointer: pointer above text]
-- 'alpha'		[alpha pointers]
-- 'clock'		[shows/hides analog clock]
+`export PICO_SDK_PATH=/path/to/pico-sdk`
 
-#### non boolean values
-- 'theme'		[set theme (0-3)]
-- 'light'		[set brightness (0-100)]
-- 'hour'		[set hour (0-23]
-- 'min'			[set minutes (0-59)]
-- 'sec'			[set seconds (0-59)]
-- 'dotw'		[set day of the week (0-6, 0=Sunday, 1=Monday, 6=Saturday)]
-- 'year'		[set year (0-9999)]
-- 'mon'			[set month (1-12)]
-- 'day'			[set day (1-31)]
-- 'spin'		[set degrees (-359,0,359) +/- when 'rota' is eanbled]
-- 'deg'			[set the degree when (0-359) 'rota' is enabled]
-- 'editpos'		[set editposition (0-8)]
+Alternatively, `export PICO_SDK_FETCH_FROM_GIT=1` lets CMake clone it. Then:
 
-### float values
-- 'fspin'   [set fspin (+/-0.001) for a very slow rotation]
+`mkdir build;cd build;cmake ..;make`
 
-#### no args
-- 'cir0'		[dynamic circle off]
-- 'cir1'		[dynamic circle on]
-- 'batmax'		[show bat max value (stdio)]
-- 'batmin'		[show bat min value]
-- 'save'		[save data]
-- 'stat'		[show status (stdio)]
-- 'roto'		[gfx_mode = rotozoom]
-- 'rota'		[gfx_mode = rotating background for dynamic backgrounds]
-- 'norm'		[gfx_mode = normal gfx, no rotation, no rotozoom]
+This produces the three `.uf2` files in `build/`, and copies each one to
+`uf2/`.
 
+## Flashing the image
 
-### additional information
-- all tools/scripts moved to folder 'tool'
-- img2data.md -> tool/tools.md
-- icons from openiconlibrary [https://sourceforge.net/projects/openiconlibrary]
-- textures from opengameart.org (most of them)
-- images from wikimedia.org
+Put the board in BOOTSEL — hold BOOT while plugging it in, or double-tap reset,
+as the build links `pico_bootsel_via_double_reset` — then:
+
+`./tool/pilo oil_t`     engine oil temperature
+`./tool/pilo trans_t`   gearbox oil temperature
+`./tool/pilo oil_p`     engine oil pressure
+
+`./tool/pilo` with no argument lists the variants and where each `.uf2` was
+found. It warns when the sources are newer than the binary, and takes an
+explicit file too: `./tool/pilo build/main_oil_p.uf2`. See
+`tool/tools.md` for the environment overrides.
+
+The equivalent by hand:
+
+`picotool load ./build/main_oil_t.uf2 -x`
+
+`sudo` is needed on Linux but not on macOS. With several boards connected,
+list them with `picotool info -a` and target one with
+`--bus <bus> --address <addr>`.
+
+## Tools
+
+Scripts for flashing, serial shell, LCD screenshots, and converting images and
+fonts into header files live in `tool/`, documented in `tool/tools.md`. The
+images and fonts themselves are in `img/`.
+
+## Known issues
+
+- battery display has to be adjusted depending on battery type
+- `NIGHT_THEME` and the `_dark` gauge faces exist but are never selected:
+  `current_theme` stays on `DAY_THEME`
+- a disconnected sensor leaves its input floating, which reads as a low but
+  plausible value rather than as a fault
+
+## Credits
+
+Based on [dawigit/picoclock](https://github.com/dawigit/picoclock) — the
+display, widget, drawing and font code, and the tooling in `tool/`, come from
+that project.

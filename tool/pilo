@@ -1,4 +1,117 @@
-#!/bin/bash
-#alias pilo='sudo picotool load ./main.uf2 -x --bus 1 --address $(picotool info | grep "device in BOOTSEL" | cut -d" " -f6)'
-sudo picotool load ./main.uf2 -x --bus 1 --address $(picotool info | grep "device in BOOTSEL" | cut -d" " -f6)
+#!/usr/bin/env bash
+#
+# pilo - flash a universal_gauges build variant onto an RP2040 in BOOTSEL mode
+#
+#   usage: pilo <variant>
+#          pilo                 # lists the available variants
+#
+#   variants: oil_t    engine oil temperature   (main_oil_t.uf2)
+#             trans_t  gearbox oil temperature  (main_trans_t.uf2)
+#             oil_p    engine oil pressure      (main_oil_p.uf2)
+#
+#   A .uf2 file name or path is also accepted directly:
+#          pilo build/main_oil_p.uf2
+#
+#   Environment overrides:
+#     PILO_BUS=1 PILO_ADDRESS=5   target one specific device (several boards
+#                                 in BOOTSEL at once)
+#     PILO_SUDO=0|1               force sudo off/on (default: on for Linux)
+#
+set -uo pipefail
 
+VARIANTS="oil_t trans_t oil_p"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+die() { printf '%s\n' "$*" >&2; exit 1; }
+
+# ---- locate a .uf2 for the requested variant -------------------------------
+# Looks in build/ first (freshly compiled), then uf2/ (post-build copy).
+find_uf2() {
+  local name="$1" c
+  for c in "$ROOT/build/main_$name.uf2" "$ROOT/uf2/main_$name.uf2"; do
+    [ -f "$c" ] && { printf '%s\n' "$c"; return 0; }
+  done
+  return 1
+}
+
+usage() {
+  local v f
+  echo "usage: pilo <variant>"
+  echo
+  echo "available variants:"
+  for v in $VARIANTS; do
+    if f="$(find_uf2 "$v")"; then
+      printf '  %-8s %s\n' "$v" "$f"
+    else
+      printf '  %-8s (not built)\n' "$v"
+    fi
+  done
+  echo
+  echo "a .uf2 file or path also works:  pilo build/main_oil_p.uf2"
+}
+
+[ $# -eq 0 ] && { usage; exit 1; }
+
+# ---- resolve the argument to a .uf2 path ----------------------------------
+ARG="$1"
+UF2=""
+
+case "$ARG" in
+  -h|--help) usage; exit 0 ;;
+  *.uf2)
+    # explicit file: as given, or relative to the project root
+    if   [ -f "$ARG" ];        then UF2="$ARG"
+    elif [ -f "$ROOT/$ARG" ];  then UF2="$ROOT/$ARG"
+    else die "pilo: no such file: $ARG"
+    fi
+    ;;
+  *)
+    # accept oil_p as well as main_oil_p
+    NAME="${ARG#main_}"
+    case " $VARIANTS " in
+      *" $NAME "*) ;;
+      *) echo "pilo: unknown variant '$ARG'" >&2; echo >&2; usage >&2; exit 1 ;;
+    esac
+    UF2="$(find_uf2 "$NAME")" || die \
+      "pilo: main_$NAME.uf2 not found - build it first (cmake --build build)"
+    ;;
+esac
+
+# ---- warn on a stale build ------------------------------------------------
+for src in "$ROOT/main.c" "$ROOT/CMakeLists.txt"; do
+  [ -f "$src" ] && [ "$src" -nt "$UF2" ] && \
+    echo "pilo: warning - $(basename "$src") is newer than $(basename "$UF2"), rebuild?" >&2
+done
+
+# ---- picotool -------------------------------------------------------------
+command -v picotool >/dev/null 2>&1 || \
+  die "pilo: picotool not found in PATH"
+
+SUDO=""
+if [ "${PILO_SUDO:-auto}" = "1" ]; then
+  SUDO="sudo"
+elif [ "${PILO_SUDO:-auto}" = "auto" ] && [ "$(uname -s)" = "Linux" ]; then
+  SUDO="sudo"   # macOS does not need it
+fi
+
+TARGET=()
+[ -n "${PILO_BUS:-}" ]     && TARGET+=(--bus "$PILO_BUS")
+[ -n "${PILO_ADDRESS:-}" ] && TARGET+=(--address "$PILO_ADDRESS")
+
+echo "pilo: loading $UF2"
+$SUDO picotool load "$UF2" -x "${TARGET[@]+"${TARGET[@]}"}"
+rc=$?
+
+if [ $rc -ne 0 ]; then
+  echo >&2
+  echo "pilo: picotool failed (exit $rc)." >&2
+  echo "      - is the board in BOOTSEL? (hold BOOT while plugging it in," >&2
+  echo "        or double-tap reset: this build has pico_bootsel_via_double_reset)" >&2
+  echo "      - several boards connected? pick one with:" >&2
+  echo "        PILO_BUS=<bus> PILO_ADDRESS=<addr> pilo $ARG   (see picotool info -a)" >&2
+  exit $rc
+fi
+
+echo "pilo: done"

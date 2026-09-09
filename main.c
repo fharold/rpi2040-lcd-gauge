@@ -1,5 +1,3 @@
-static __attribute__((section (".noinit")))char losabuf[4096];
-
 #include "stdio.h"
 #include "pico/stdlib.h"
 #include "stdlib.h"
@@ -12,7 +10,6 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 #include "hardware/gpio.h"
 #include <hardware/flash.h>
 #include "hardware/watchdog.h"
-#include "hardware/flash.h"
 #include "hardware/sync.h"
 #include "hardware/clocks.h"
 #include "hardware/interp.h"
@@ -21,10 +18,7 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 #include <float.h>
 #include "pico/types.h"
 #include "pico/bootrom/sf_table.h"
-#include <stdio.h>
 #include "hardware/i2c.h"
-#include "pico/binary_info.h"
-#include "pico/stdlib.h"
 #include "lcd.h"
 #include "w.h"
 #include "lib/draw.h"
@@ -38,22 +32,13 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 #include "img/bg_gauge_oil_p_dark.h"
 #include "img/font34.h"//touche pas à ça petit con
 #include "img/font40.h"//touche pas à ça petit con
-#include "lib/draw.h"
 //#include "img/font48.h"
-
-// Tested with the parts that have the height of 240 and 320
-#define SCREEN_WIDTH 240
-#define SCREEN_HEIGHT 240
-#define SCREEN_SIZE (SCREEN_WIDTH*SCREEN_HEIGHT)
-#define SERIAL_CLK_DIV 1.f
-#define UNIT_LSB 16
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
 
 #define DEG_TO_RAD(deg) ((float) deg * (float) M_PI / 180.f)
-#define THETA_MAX (2.f * (float) M_PI)
 
 #define NEEDLE_MAX_ANGLE 135.f
 #define NEEDLE_MIN_ANGLE 45.f
@@ -75,30 +60,40 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 #define SHIFTED_DIGITAL_IN2 (17) //input
 #define ALS_OUT (26) //analog input
 
+/* ---------- ADC inputs ----------
+   RP2040 mapping : GP26=ADC0, GP27=ADC1, GP28=ADC2, GP29=ADC3 (VSYS/batt) */
+#define ALS_ADC_CHANNEL      (0)       /* ALS_OUT           -> GP26 */
+#define SENSOR2_ADC_CHANNEL  (1)       /* SENSOR2_FILTERED  -> GP27 */
+#define SENSOR1_ADC_CHANNEL  (2)       /* SENSOR1_FILTERED  -> GP28 */
+
+#define ADC_SAMPLES       (8)          /* oversampling to smooth out noise */
+#define ADC_PERIOD_MS     (100)        /* read period in the main loop */
+#define ADC_VREF_MV       (3300u)      /* ADC full scale, in mV */
+#define ADC_RANGE         (1 << 12)    /* 12-bit ADC -> 0..4095 */
+#define ADC_MAX           (ADC_RANGE - 1)
+
 W* wn_background = NULL;
-W* wn_content = NULL;
 W* wn_draw_needle_temp = NULL;
 W* wn_draw_needle_press = NULL;
-W* wl[1] = {NULL};
 
+/* ---------- build variant ----------
+   Fourni par CMake (-DCURRENT_MODE=MODE_xxx), une cible par variante.
+   La valeur ci-dessous n'est qu'un defaut pour une compilation manuelle. */
 #define MODE_OIL_P 0
 #define MODE_OIL_T 1
 #define MODE_TRANS_T 2
+
+#ifndef CURRENT_MODE
 #define CURRENT_MODE MODE_OIL_T
+#endif
+
+#if (CURRENT_MODE != MODE_OIL_P) && (CURRENT_MODE != MODE_OIL_T) && (CURRENT_MODE != MODE_TRANS_T)
+#error "CURRENT_MODE doit valoir MODE_OIL_P, MODE_OIL_T ou MODE_TRANS_T"
+#endif
 
 #define NEEDLE_ORANGE 0xF840
 
-typedef struct {
-  Vec2 start;
-  Vec2 end;
-} NeedlePos;
-
-//adc_read()
-
 #define mcpy(d,s,sz) for(int i=0;i<sz;i++){d[i]=s[i];}
-
-#define TFOWI 26
-#define TFOSWI 14
 
 #define DAY_THEME (uint8_t)0
 #define NIGHT_THEME (uint8_t)1
@@ -106,28 +101,51 @@ typedef struct {
 #define MIN_BRIGHTNESS (uint8_t)1
 #define MAX_BRIGHTNESS (uint8_t)100
 
-float theta = 0.0f;
-float theta1 = 0.0f;
-float theta2 = 0.0f;
-float theta3 = 0.0f;
-float theta_d = 1.2f;
+#define ALS_MV_MAX 2700
+#define ALS_MV_MIN 0
+
+#define TEMP_SENSOR_MV_MAX 2900
+#define TEMP_SENSOR_MV_MIN 640
+
+#define PRESSURE_SENSOR_MV_MAX 2250
+#define PRESSURE_SENSOR_MV_MIN 250
+
+/* Le capteur de la variante est toujours cable sur SENSOR1 : seules ses
+   bornes d'entree changent d'une variante a l'autre. */
+#if CURRENT_MODE == MODE_OIL_P
+  #define SENSOR_MV_MIN   PRESSURE_SENSOR_MV_MIN
+  #define SENSOR_MV_MAX   PRESSURE_SENSOR_MV_MAX
+  #define MODE_NAME       "OIL_P"
+#elif CURRENT_MODE == MODE_OIL_T
+  #define SENSOR_MV_MIN   TEMP_SENSOR_MV_MIN
+  #define SENSOR_MV_MAX   TEMP_SENSOR_MV_MAX
+  #define MODE_NAME       "OIL_T"
+#else /* MODE_TRANS_T : meme sonde, meme echelle que OIL_T */
+  #define SENSOR_MV_MIN   TEMP_SENSOR_MV_MIN
+  #define SENSOR_MV_MAX   TEMP_SENSOR_MV_MAX
+  #define MODE_NAME       "TRANS_T"
+#endif
+
 float current_pressure = 7.0f;
 int16_t current_temperature = 130;
 uint8_t current_brightness = MIN_BRIGHTNESS;
 uint8_t current_theme = DAY_THEME;
 
-extern Vec2 vO;
+/* last ALS measurement (ALS_OUT / GP26) */
+uint16_t als_raw = 0;          /* 0..4095                        */
+uint16_t als_mv = 0;           /* 0..3300 mV                     */
+uint8_t  als_percent = 0;      /* 0..100 %, ALS_MV_MIN..ALS_MV_MAX */
+
+/* last measurement of the variant's sensor (SENSOR1_FILTERED / GP28) */
+uint16_t sensor1_raw = 0;      /* 0..4095                              */
+uint16_t sensor1_mv = 0;       /* 0..3300 mV                           */
+uint8_t  sensor1_percent = 0;  /* 0..100 %, SENSOR_MV_MIN..SENSOR_MV_MAX */
 
 extern uint8_t LCD_RST_PIN;
 extern W wroot;
 
 uint8_t* b0=NULL;
 uint32_t* b1=NULL;
-
-//ky-040
-#define CCLK 16
-#define CDT 17
-#define CSW 19
 
 //one button /
 #define QMIINT1 23
@@ -137,11 +155,6 @@ Vec2 center = {120, 195};
 uint8_t CBUT0 = 22;
 
 bool rp2040_touch = false;
-bool clk,dt,sw,oclk,odt,osw;
-
-void draw_pointer(Vec2 vs, Vec2 vts, int16_t tu, uint16_t color, const uint8_t* sr, uint16_t alpha){
-  draw_pointer_mode(vs,tu,YELLOW);
-}
 
 bool reserved_addr(uint8_t addr) {
   return (addr & 0x78) == 0 || (addr & 0x78) == 0x78;
@@ -229,6 +242,64 @@ void draw_background()
   }
 }
 
+/* ---------- ADC helpers ---------- */
+
+/* Configure the analog pins (disables digital I/O + pulls on the pads). */
+void pc_adc_init(void) {
+  adc_init();
+  adc_gpio_init(ALS_OUT);
+  adc_gpio_init(SENSOR1_FILTERED);
+  adc_gpio_init(SENSOR2_FILTERED);
+}
+
+/* Oversampled raw reading. The channel is selected on every call because
+   lcd_module_init() selects BAR_CHANNEL (3) for the battery measurement. */
+uint16_t pc_adc_read_raw(uint8_t channel) {
+  adc_select_input(channel);
+  uint32_t sum = 0;
+  for (int i = 0; i < ADC_SAMPLES; i++) {
+    sum += adc_read();
+  }
+  return (uint16_t)(sum / ADC_SAMPLES);
+}
+
+/* raw count -> mV (max 4095 * 3300 = 13.5e6, fits in uint32_t). */
+uint16_t pc_adc_raw_to_mv(uint16_t raw) {
+  return (uint16_t)(((uint32_t)raw * ADC_VREF_MV) / ADC_MAX);
+}
+
+/* mV -> 0..100 % over the sensor's own [mv_min, mv_max] span, clamped. */
+uint8_t pc_adc_mv_to_percent(uint16_t mv, uint16_t mv_min, uint16_t mv_max) {
+  if (mv_max <= mv_min) { return 0; }
+  if (mv <= mv_min)     { return 0; }
+  if (mv >= mv_max)     { return 100; }
+  return (uint8_t)(((uint32_t)(mv - mv_min) * 100u) / (uint32_t)(mv_max - mv_min));
+}
+
+/* mV -> engineering units, linear over [mv_min, mv_max] -> [out_min, out_max]. */
+float pc_adc_mv_to_range(uint16_t mv, uint16_t mv_min, uint16_t mv_max,
+                         float out_min, float out_max) {
+  if (mv_max <= mv_min) { return out_min; }
+  if (mv <= mv_min)     { return out_min; }
+  if (mv >= mv_max)     { return out_max; }
+  float factor = (float)(mv - mv_min) / (float)(mv_max - mv_min);
+  return out_min + (out_max - out_min) * factor;
+}
+
+/* Refresh the als_* globals. */
+void als_update(void) {
+  als_raw     = pc_adc_read_raw(ALS_ADC_CHANNEL);
+  als_mv      = pc_adc_raw_to_mv(als_raw);
+  als_percent = pc_adc_mv_to_percent(als_mv, ALS_MV_MIN, ALS_MV_MAX);
+}
+
+/* Refresh the sensor1_* globals, with the current variant's input span. */
+void sensor1_update(void) {
+  sensor1_raw     = pc_adc_read_raw(SENSOR1_ADC_CHANNEL);
+  sensor1_mv      = pc_adc_raw_to_mv(sensor1_raw);
+  sensor1_percent = pc_adc_mv_to_percent(sensor1_mv, SENSOR_MV_MIN, SENSOR_MV_MAX);
+}
+
 void init() {
   sleep_ms(100);  // "Rain-wait" wait 100ms after booting (for other chips to initialize)
   rtc_init();
@@ -262,27 +333,22 @@ void init() {
   gpio_set_dir(BUTTON_INPUT, GPIO_IN);
   gpio_pull_up(BUTTON_INPUT);
 
-  gpio_init(SENSOR1_FILTERED);
-  gpio_set_dir(SENSOR1_FILTERED, GPIO_IN);
-
-  gpio_init(SENSOR2_FILTERED);
-  gpio_set_dir(SENSOR2_FILTERED, GPIO_IN);
-
   gpio_init(SHIFTED_DIGITAL_IN1);
   gpio_set_dir(SHIFTED_DIGITAL_IN1, GPIO_IN);
 
   gpio_init(SHIFTED_DIGITAL_IN2);
   gpio_set_dir(SHIFTED_DIGITAL_IN2, GPIO_IN);
 
-  gpio_init(ALS_OUT);
-  gpio_set_dir(ALS_OUT, GPIO_IN);
+  /* ALS_OUT (GP26), SENSOR1_FILTERED (GP28), SENSOR2_FILTERED (GP27)
+     are analog inputs -> ADC, not digital GPIOs. SENSOR2 is not wired in
+     any variant, it is only configured so the pad stays high-impedance. */
+  pc_adc_init();
   
   i2c_scan();
   lcd_init();
   b0 = malloc(LCD_SZ);
   b1 = (uint32_t*)b0; 
   if(b0==0){printf("b0==0!\n");}
-  uint32_t o = 0;
   lcd_setimg((uint16_t*)b0);
 
   CST816S_init(CST816S_Gesture_Mode);
@@ -296,40 +362,53 @@ void init() {
   gpio_pull_up(CBUT0);
   gpio_set_irq_enabled(CBUT0, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
 
-
-  
   QMI8658_init();
 
   init_root();
 
   wn_background = wadd_none(&wroot,draw_background);
-  if (CURRENT_MODE == MODE_OIL_P) {
-    wn_draw_needle_press = wadd_none(&wroot,draw_needle_press);
-  } else {
-    wn_draw_needle_temp = wadd_none(&wroot,draw_needle_temp);
-  }
+#if CURRENT_MODE == MODE_OIL_P
+  wn_draw_needle_press = wadd_none(&wroot,draw_needle_press);
+#else
+  wn_draw_needle_temp = wadd_none(&wroot,draw_needle_temp);
+#endif
 }
 
 int main(void)
 {
-  
+  init();
+
+  absolute_time_t adc_next = get_absolute_time();
+
   while(true){
+    /* ---- read the analog inputs ---- */
+    if (absolute_time_diff_us(get_absolute_time(), adc_next) <= 0) {
+      adc_next = delayed_by_ms(get_absolute_time(), ADC_PERIOD_MS);
+
+      als_update();      /* ALS_OUT          -> ADC0 / GP26 */
+      sensor1_update();  /* SENSOR1_FILTERED -> ADC2 / GP28 */
+
+      printf("[" MODE_NAME "] ALS raw=%u %umV %u%%   S1 raw=%u %umV %u%%\n",
+             als_raw, als_mv, als_percent,
+             sensor1_raw, sensor1_mv, sensor1_percent);
+
+      current_brightness = MIN_BRIGHTNESS + (uint8_t)(((uint32_t)als_percent * (MAX_BRIGHTNESS - MIN_BRIGHTNESS)) / 100u);
+
+#if CURRENT_MODE == MODE_OIL_P
+      current_pressure = pc_adc_mv_to_range(sensor1_mv,
+                             SENSOR_MV_MIN, SENSOR_MV_MAX,
+                             MIN_PRESS, MAX_PRESS);
+#else
+      current_temperature = (int16_t)pc_adc_mv_to_range(sensor1_mv,
+                                SENSOR_MV_MIN, SENSOR_MV_MAX,
+                                MIN_TEMP, MAX_TEMP);
+#endif
+    }
+
     for(int i=0;i<LCD_SZ/4;i++){b1[i]=0x00;}  //clear buffer faster
     lcd_set_brightness(current_brightness);
     wdraw(&wroot);
     lcd_display(b0);
-    // current_temperature++;
-
-    if (current_temperature > 150) {
-      current_temperature = 50;
-    }
-
-    current_pressure = current_pressure + 0.1f;
-
-    if (current_pressure > 7.f) {
-      current_pressure = 0.f;
-    }
-
     sleep_ms(10);
   }
   return 0;

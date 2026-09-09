@@ -1,3 +1,21 @@
+## pilo
+
+### usage: pilo VARIANT
+#### example: pilo oil_p
+#### flashes a build variant onto an RP2040 in BOOTSEL mode
+
+- `pilo` without argument lists the three variants and where their `.uf2` was found
+- variants: `oil_t` (engine oil temp), `trans_t` (gearbox oil temp), `oil_p` (engine oil pressure)
+- looks in `build/` first, then `uf2/`; warns if `main.c` / `CMakeLists.txt` is newer than the `.uf2`
+- an explicit file also works: `pilo build/main_oil_p.uf2`
+- `sudo` is used on Linux only; override with `PILO_SUDO=0` / `PILO_SUDO=1`
+- with several boards in BOOTSEL, pick one: `PILO_BUS=1 PILO_ADDRESS=5 pilo oil_p`
+  (find the values with `picotool info -a`)
+
+To get the board into BOOTSEL: hold BOOT while plugging it in, or double-tap
+reset - the build links `pico_bootsel_via_double_reset`.
+
+
 ## pigsh
 
 ### usage: pigsh ttyACMn
@@ -20,23 +38,23 @@ mksnap will open the 'png' with eog image viewer (if installed)
 
 ## snaps via ssh?
 ### example:
-### ssh user@host 'cd picoclock/img; ../tool/snaps 1 mysnap'
-### picoclock has to be in your home '/home/user/picoclock'
+### ssh user@host 'cd universal_gauges/img; ../tool/snaps 1 mysnap'
+### universal_gauges has to be in your home '/home/user/universal_gauges'
 - connects to your host (like jim@raspi4 )
-- changes to your 'picoclock/img' folder in your home (so images saved are there)
+- changes to your 'universal_gauges/img' folder in your home (so images saved are there)
 - calls 'snaps' script from 'tools' folder
 - connection finished - ssh stuff done
 ##
 
 ### local image view: [you work from a linux system, ssh connected to a pi]
-### ssh user@host 'cd picoclock/img; ../tool/snaps 1 mysnap'; eog mysnap.png
+### ssh user@host 'cd universal_gauges/img; ../tool/snaps 1 mysnap'; eog mysnap.png
 - assumptions:
-- 'sshfs user@host:/home/user/picoclock' ./picoclock
-- cd ~/picoclock/img
+- 'sshfs user@host:/home/user/universal_gauges' ./universal_gauges
+- cd ~/universal_gauges/img
 - my pi4 is headless, so no X installed.
 
 ### from your local terminal:
-- ssh user@host 'cd picoclock/img; ../tool/snaps 1 mysnap'; eog mysnap.png
+- ssh user@host 'cd universal_gauges/img; ../tool/snaps 1 mysnap'; eog mysnap.png
 
 
 

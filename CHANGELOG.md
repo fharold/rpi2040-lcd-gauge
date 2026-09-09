@@ -1,4 +1,16 @@
 ### Changelog:
+
+#### universal_gauges (fork)
+- 3 build variants (engine oil temp / gearbox oil temp / engine oil pressure),
+  selected at compile time by CURRENT_MODE, one CMake target each
+- sensor reading on SENSOR1 (ADC2) with oversampling, mV conversion and
+  per-sensor calibration spans; ambient light sensor drives the backlight
+- 'pilo' rewritten: takes a variant name, locates the .uf2, warns on stale
+  builds, sudo on Linux only
+
+#### upstream (dawigit/picoclock)
+- all tools/scripts moved to folder 'tool'
+- img2data.md -> tool/tools.md
 - spi transfer (at full speed) via dma -> 20fps
 - raspberry texture added
 - some seamless textures added (good with rotozoom)
