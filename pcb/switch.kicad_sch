@@ -370,7 +370,7 @@
 			(uuid "fb1da911-496c-4ba6-89f8-f9968bca9a3d")
 		)
 		(instances
-			(project "Untitled"
+			(project "rpi2040-lcd-gauge"
 				(path "/c723ac3e-63b0-4bac-aab1-4dfb129ee82b/fc0ac50c-b66d-4af2-a702-633669886621"
 					(reference "SW1")
 					(unit 1)
@@ -448,7 +448,7 @@
 			(uuid "77723711-4b5f-48c2-be4e-1506475e08b2")
 		)
 		(instances
-			(project "Untitled"
+			(project "rpi2040-lcd-gauge"
 				(path "/c723ac3e-63b0-4bac-aab1-4dfb129ee82b/fc0ac50c-b66d-4af2-a702-633669886621"
 					(reference "#PWR032")
 					(unit 1)

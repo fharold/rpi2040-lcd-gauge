@@ -171,6 +171,9 @@ typedef struct {
 } W_circmenu;
 
 
+/* The root of the widget tree, defined in w.c. */
+extern W wroot;
+
 void init_root();
 bool wadd(W* p, W* ch);
 

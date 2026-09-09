@@ -9,6 +9,10 @@
 #             gearbox_t  gearbox oil temperature  (main_gearbox_t.uf2)
 #             oil_p    engine oil pressure      (main_oil_p.uf2)
 #
+#   Add _demo for a demo image, the one built with cmake -DUSE_DEMO=ON, whose
+#   needle sweeps the face on its own instead of following the sensor:
+#          pilo oil_p_demo                     (main_oil_p_demo.uf2)
+#
 #   A .uf2 file name or path is also accepted directly:
 #          pilo build/main_oil_p.uf2
 #
@@ -26,27 +30,40 @@ ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 die() { printf '%s\n' "$*" >&2; exit 1; }
 
-# ---- locate a .uf2 for the requested variant -------------------------------
-# Built firmware lives in build/. Release downloads are flashed by passing
-# their path directly.
+# ---- locate a .uf2 for the requested target --------------------------------
+# Takes a target name: oil_t, or oil_t_demo for a demo image. Normal builds
+# land in build/, demo builds in build-demo/ if that is where they were
+# configured, but either directory can hold either, so both are searched.
+# Release downloads are flashed by passing their path directly.
 find_uf2() {
-  local c="$ROOT/build/main_$1.uf2"
-  [ -f "$c" ] && { printf '%s\n' "$c"; return 0; }
+  local d
+  for d in "$ROOT/build" "$ROOT/build-demo"; do
+    [ -f "$d/main_$1.uf2" ] && { printf '%s\n' "$d/main_$1.uf2"; return 0; }
+  done
   return 1
 }
 
+# lists one group of targets: the plain variants, or their demo counterparts
+list_targets() {
+  local suffix="$1" v f
+  for v in $VARIANTS; do
+    if f="$(find_uf2 "$v$suffix")"; then
+      printf '  %-16s %s\n' "$v$suffix" "$f"
+    else
+      printf '  %-16s (not built)\n' "$v$suffix"
+    fi
+  done
+}
+
 usage() {
-  local v f
   echo "usage: pilo <variant>"
   echo
   echo "available variants:"
-  for v in $VARIANTS; do
-    if f="$(find_uf2 "$v")"; then
-      printf '  %-10s %s\n' "$v" "$f"
-    else
-      printf '  %-10s (not built)\n' "$v"
-    fi
-  done
+  list_targets ""
+  echo
+  echo "demo images - the needle sweeps on its own, the sensor is ignored"
+  echo "(built with: cmake -DUSE_DEMO=ON ..):"
+  list_targets "_demo"
   echo
   echo "a .uf2 file or path also works:  pilo build/main_oil_p.uf2"
 }
@@ -67,22 +84,40 @@ case "$ARG" in
     fi
     ;;
   *)
-    # accept oil_p as well as main_oil_p
+    # accept oil_p as well as main_oil_p, and oil_p_demo for a demo image
     NAME="${ARG#main_}"
+    BASE="${NAME%_demo}"
     case " $VARIANTS " in
-      *" $NAME "*) ;;
+      *" $BASE "*) ;;
       *) echo "pilo: unknown variant '$ARG'" >&2; echo >&2; usage >&2; exit 1 ;;
     esac
-    UF2="$(find_uf2 "$NAME")" || die \
-      "pilo: main_$NAME.uf2 not found - build it first (cmake --build build)"
+    if ! UF2="$(find_uf2 "$NAME")"; then
+      if [ "$NAME" != "$BASE" ]; then
+        die "pilo: main_$NAME.uf2 not found - build it with:
+       mkdir build-demo && cd build-demo && cmake -DUSE_DEMO=ON .. && make"
+      fi
+      die "pilo: main_$NAME.uf2 not found - build it first (cmake --build build)"
+    fi
     ;;
 esac
 
 # ---- warn on a stale build ------------------------------------------------
-for src in "$ROOT/main.c" "$ROOT/CMakeLists.txt"; do
-  [ -f "$src" ] && [ "$src" -nt "$UF2" ] && \
-    echo "pilo: warning - $(basename "$src") is newer than $(basename "$UF2"), rebuild?" >&2
+# The firmware is a handful of modules, so this looks at all of them, at the
+# libraries and at the generated image headers, not just at main.c.
+STALE=""
+for src in "$ROOT"/*.c "$ROOT"/*.h "$ROOT"/CMakeLists.txt \
+           "$ROOT"/lib/*.c "$ROOT"/lib/*.h "$ROOT"/lib/*/*.c "$ROOT"/lib/*/*.h \
+           "$ROOT"/img/*.h; do
+  [ -f "$src" ] && [ "$src" -nt "$UF2" ] && STALE="$STALE $(basename "$src")"
 done
+[ -n "$STALE" ] && \
+  echo "pilo: warning -$STALE newer than $(basename "$UF2"), rebuild?" >&2
+
+case "$(basename "$UF2")" in
+  *_demo.uf2)
+    echo "pilo: this is a demo image - the needle sweeps, the sensor is ignored" >&2
+    ;;
+esac
 
 # ---- picotool -------------------------------------------------------------
 command -v picotool >/dev/null 2>&1 || \

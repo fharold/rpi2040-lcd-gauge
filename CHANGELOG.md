@@ -1,6 +1,16 @@
 ### Changelog:
 
 #### universal_gauges (fork)
+- main.c split into modules: config.h (calibration), variant.c (the gauge
+  variants, as a gauge_variant structure instead of scattered #if), board.c
+  (pins and board detection), sensors.c (ADC), gauge.c (face and needle).
+  main.c is now the bring-up order and the main loop
+- the needle is clamped to the two ends of the gauge face instead of to zero,
+  so the -0.5 to 0 bar part of the pressure scale is finally reachable
+- 'pilo' takes the demo targets as <variant>_demo, looks in build-demo/ as well
+  as build/, and its stale-build check now covers every module, not just main.c
+- demo mode, off by default, built with cmake -DUSE_DEMO=ON: the needle sweeps
+  the face instead of following the sensor, targets named main_<variant>_demo
 - 3 build variants (engine oil temp / gearbox oil temp / engine oil pressure),
   selected at compile time by CURRENT_MODE, one CMake target each
 - sensor reading on SENSOR1 (ADC2) with oversampling, mV conversion and

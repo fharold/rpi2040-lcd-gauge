@@ -4,9 +4,12 @@
 #### example: pilo oil_p
 #### flashes a build variant onto an RP2040 in BOOTSEL mode
 
-- `pilo` without argument lists the three variants and where their `.uf2` was found
+- `pilo` without argument lists the variants, their demo counterparts, and where each `.uf2` was found
 - variants: `oil_t` (engine oil temp), `gearbox_t` (gearbox oil temp), `oil_p` (engine oil pressure)
-- looks in `build/`; warns if `main.c` / `CMakeLists.txt` is newer than the `.uf2`
+- add `_demo` for a demo image, the one built with `cmake -DUSE_DEMO=ON`, whose
+  needle sweeps the face on its own: `pilo oil_p_demo`. It says so before flashing
+- looks in `build/` then `build-demo/`; warns if any source, library or image
+  header is newer than the `.uf2`
 - an explicit file also works: `pilo build/main_oil_p.uf2`
 - `sudo` is used on Linux only; override with `PILO_SUDO=0` / `PILO_SUDO=1`
 - with several boards in BOOTSEL, pick one: `PILO_BUS=1 PILO_ADDRESS=5 pilo oil_p`

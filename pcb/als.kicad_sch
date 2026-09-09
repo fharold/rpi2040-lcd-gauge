@@ -1089,7 +1089,7 @@
 			(uuid "bb516013-f321-4eac-884f-26b562031a60")
 		)
 		(instances
-			(project "Untitled"
+			(project "rpi2040-lcd-gauge"
 				(path "/c723ac3e-63b0-4bac-aab1-4dfb129ee82b/7e305ed1-0149-457d-bdf9-345da45d88ac"
 					(reference "R11")
 					(unit 1)
@@ -1168,7 +1168,7 @@
 			(uuid "9bacc364-ac24-432a-95de-6fecb10d23a1")
 		)
 		(instances
-			(project "Untitled"
+			(project "rpi2040-lcd-gauge"
 				(path "/c723ac3e-63b0-4bac-aab1-4dfb129ee82b/7e305ed1-0149-457d-bdf9-345da45d88ac"
 					(reference "#PWR022")
 					(unit 1)
@@ -1248,7 +1248,7 @@
 			(uuid "20f9f659-d2f5-4ba7-8872-601771ec04c8")
 		)
 		(instances
-			(project "Untitled"
+			(project "rpi2040-lcd-gauge"
 				(path "/c723ac3e-63b0-4bac-aab1-4dfb129ee82b/7e305ed1-0149-457d-bdf9-345da45d88ac"
 					(reference "C5")
 					(unit 1)
@@ -1326,7 +1326,7 @@
 			(uuid "9990982c-4e91-44f9-ab99-2f3267260333")
 		)
 		(instances
-			(project "Untitled"
+			(project "rpi2040-lcd-gauge"
 				(path "/c723ac3e-63b0-4bac-aab1-4dfb129ee82b/7e305ed1-0149-457d-bdf9-345da45d88ac"
 					(reference "#PWR020")
 					(unit 1)
@@ -1413,7 +1413,7 @@
 			(uuid "998ce68d-86a8-4f0e-b325-8809b38f572d")
 		)
 		(instances
-			(project "Untitled"
+			(project "rpi2040-lcd-gauge"
 				(path "/c723ac3e-63b0-4bac-aab1-4dfb129ee82b/7e305ed1-0149-457d-bdf9-345da45d88ac"
 					(reference "U3")
 					(unit 1)
@@ -1493,7 +1493,7 @@
 			(uuid "b46274f2-b170-4ec2-9efe-955d09b647e0")
 		)
 		(instances
-			(project "Untitled"
+			(project "rpi2040-lcd-gauge"
 				(path "/c723ac3e-63b0-4bac-aab1-4dfb129ee82b/7e305ed1-0149-457d-bdf9-345da45d88ac"
 					(reference "C4")
 					(unit 1)

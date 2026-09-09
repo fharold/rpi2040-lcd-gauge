@@ -14,17 +14,39 @@ if (USE_DEVMODE)
   add_definitions(-DDEVMODE)
 endif()
 
+# Demo mode: the needle sweeps the face on its own and the sensor is ignored,
+# to check a gauge face on the bench. Off by default. The targets it builds are
+# named main_<variant>_demo, so a demo image can never be taken for a real one
+# and never overwrites one.
+option(USE_DEMO "sweep the needle instead of reading the sensor" OFF)
+if (USE_DEMO)
+  add_definitions(-DDEMO_MODE)
+endif()
+
 set(UNIVERSAL_GAUGES_SOURCES
   main.c
+  board.c
+  gauge.c
+  sensors.c
+  variant.c
   lib/draw.c
   w.c
   CST816S.c
 )
 
+if (USE_DEMO)
+  list(APPEND UNIVERSAL_GAUGES_SOURCES demo.c)
+endif()
+
 # One executable per build variant. The variant is selected at compile time
-# through CURRENT_MODE, which main.c reads (see its "build variant" block).
+# through CURRENT_MODE, which variant.c turns into the one gauge_variant the
+# rest of the firmware reads (see variant.h).
 #   universal_gauges_variant(<target name> <MODE_xxx>)
 function(universal_gauges_variant TARGET MODE)
+  if (USE_DEMO)
+    set(TARGET "${TARGET}_demo")
+  endif()
+
   add_executable(${TARGET} ${UNIVERSAL_GAUGES_SOURCES})
 
   target_compile_definitions(${TARGET} PRIVATE CURRENT_MODE=${MODE})
