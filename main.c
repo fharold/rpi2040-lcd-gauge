@@ -66,6 +66,15 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 #define MIN_PRESS -0.5f
 #define MAX_PRESS 6.5f
 
+#define RELAY2_COMMAND_PIN (20) //output
+#define RELAY1_COMMAND_PIN (19) //output
+#define BUTTON_INPUT (18) //input, pull-up
+#define SENSOR1_FILTERED (28) //analog input
+#define SENSOR2_FILTERED (27) //analog input
+#define SHIFTED_DIGITAL_IN1 (16) //input 
+#define SHIFTED_DIGITAL_IN2 (17) //input
+#define ALS_OUT (26) //analog input
+
 W* wn_background = NULL;
 W* wn_content = NULL;
 W* wn_draw_needle_temp = NULL;
@@ -126,6 +135,7 @@ uint32_t* b1=NULL;
 
 Vec2 center = {120, 195};
 uint8_t CBUT0 = 22;
+
 bool rp2040_touch = false;
 bool clk,dt,sw,oclk,odt,osw;
 
@@ -219,8 +229,7 @@ void draw_background()
   }
 }
 
-int main(void)
-{
+void init() {
   sleep_ms(100);  // "Rain-wait" wait 100ms after booting (for other chips to initialize)
   rtc_init();
 	stdio_init_all();
@@ -243,6 +252,31 @@ int main(void)
   gpio_pull_up(DEV_SDA_PIN);
   gpio_pull_up(DEV_SCL_PIN);
 
+  gpio_init(RELAY1_COMMAND_PIN);
+  gpio_set_dir(RELAY1_COMMAND_PIN, GPIO_OUT);
+
+  gpio_init(RELAY2_COMMAND_PIN);
+  gpio_set_dir(RELAY2_COMMAND_PIN, GPIO_OUT);
+  
+  gpio_init(BUTTON_INPUT);
+  gpio_set_dir(BUTTON_INPUT, GPIO_IN);
+  gpio_pull_up(BUTTON_INPUT);
+
+  gpio_init(SENSOR1_FILTERED);
+  gpio_set_dir(SENSOR1_FILTERED, GPIO_IN);
+
+  gpio_init(SENSOR2_FILTERED);
+  gpio_set_dir(SENSOR2_FILTERED, GPIO_IN);
+
+  gpio_init(SHIFTED_DIGITAL_IN1);
+  gpio_set_dir(SHIFTED_DIGITAL_IN1, GPIO_IN);
+
+  gpio_init(SHIFTED_DIGITAL_IN2);
+  gpio_set_dir(SHIFTED_DIGITAL_IN2, GPIO_IN);
+
+  gpio_init(ALS_OUT);
+  gpio_set_dir(ALS_OUT, GPIO_IN);
+  
   i2c_scan();
   lcd_init();
   b0 = malloc(LCD_SZ);
@@ -257,27 +291,27 @@ int main(void)
   gpio_set_dir(QMIINT1,GPIO_IN);
   gpio_set_irq_enabled_with_callback(QMIINT1, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &gpio_callback);
 
-  if(rp2040_touch) {
-    gpio_init(Touch_INT_PIN);
-    gpio_pull_up(Touch_INT_PIN);
-    gpio_set_dir(Touch_INT_PIN,GPIO_IN);
-    gpio_set_irq_enabled(Touch_INT_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
-    CST816S_init(CST816S_Point_Mode);
-  } else {
-    gpio_init(CBUT0);
-    gpio_set_dir(CBUT0,GPIO_IN);
-    gpio_pull_up(CBUT0);
-    gpio_set_irq_enabled(CBUT0, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
-  }
+  gpio_init(CBUT0);
+  gpio_set_dir(CBUT0,GPIO_IN);
+  gpio_pull_up(CBUT0);
+  gpio_set_irq_enabled(CBUT0, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
+
+
+  
   QMI8658_init();
 
   init_root();
+
   wn_background = wadd_none(&wroot,draw_background);
   if (CURRENT_MODE == MODE_OIL_P) {
     wn_draw_needle_press = wadd_none(&wroot,draw_needle_press);
   } else {
     wn_draw_needle_temp = wadd_none(&wroot,draw_needle_temp);
   }
+}
+
+int main(void)
+{
   
   while(true){
     for(int i=0;i<LCD_SZ/4;i++){b1[i]=0x00;}  //clear buffer faster

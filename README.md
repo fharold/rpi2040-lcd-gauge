@@ -1,4 +1,14 @@
 # picoclock
+GP20 : relay2_command_pin(output)
+GP19 : relay1_command_pin(output)
+GP18 : button_input(input, pull-up)
+GP28 : sensor1_filtered(analog input)
+GP27 : sensor2_filtered(analog input)
+GP16 : shifted_digital_in1
+GP17 : shifted_digital_in2
+GP26 : als_out(analog input)
+
+
 ### WAVESHARE RP2040-LCD-1.28 / WAVESHARE RP2040-TOUCH-LCD-1.28
 
 ![s_flag](https://github.com/dawigit/picoclock/blob/main/img/s_flag.png)
