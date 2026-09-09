@@ -1,0 +1,4 @@
+(sym_lib_table
+	(version 7)
+	(lib (name "ams_OSRAM") (type "KiCad") (uri "${KIPRJMOD}/ams_OSRAM.kicad_sym") (options "") (descr "ams_OSRAM"))
+)
