@@ -7,6 +7,8 @@
   per-sensor calibration spans; ambient light sensor drives the backlight
 - 'pilo' rewritten: takes a variant name, locates the .uf2, warns on stale
   builds, sudo on Linux only
+- firmware images are no longer in git: attached to GitHub releases, built by
+  .github/workflows/release.yml on a v* tag, or locally with 'pirel'
 
 #### upstream (dawigit/picoclock)
 - all tools/scripts moved to folder 'tool'

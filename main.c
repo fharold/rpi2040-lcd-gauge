@@ -24,10 +24,10 @@
 #include "lib/draw.h"
 #include "QMI8658.h"
 #include "CST816S.h"
-#include "img/bg_trans_temp.h"
+#include "img/bg_gearbox_temp.h"
 #include "img/bg_gauge_oil_t.h"
 #include "img/bg_gauge_oil_p.h"
-#include "img/bg_trans_temp_dark.h"
+#include "img/bg_gearbox_temp_dark.h"
 #include "img/bg_gauge_oil_t_dark.h"
 #include "img/bg_gauge_oil_p_dark.h"
 #include "img/font34.h"//touche pas à ça petit con
@@ -79,16 +79,18 @@ W* wn_draw_needle_press = NULL;
 /* ---------- build variant ----------
    Fourni par CMake (-DCURRENT_MODE=MODE_xxx), une cible par variante.
    La valeur ci-dessous n'est qu'un defaut pour une compilation manuelle. */
-#define MODE_OIL_P 0
-#define MODE_OIL_T 1
-#define MODE_TRANS_T 2
+/* Values start at 1 on purpose: an unknown or stale mode name expands to 0
+   in #if, so it fails the check below instead of silently matching a mode. */
+#define MODE_OIL_P 1
+#define MODE_OIL_T 2
+#define MODE_GEARBOX_T 3
 
 #ifndef CURRENT_MODE
 #define CURRENT_MODE MODE_OIL_T
 #endif
 
-#if (CURRENT_MODE != MODE_OIL_P) && (CURRENT_MODE != MODE_OIL_T) && (CURRENT_MODE != MODE_TRANS_T)
-#error "CURRENT_MODE doit valoir MODE_OIL_P, MODE_OIL_T ou MODE_TRANS_T"
+#if (CURRENT_MODE != MODE_OIL_P) && (CURRENT_MODE != MODE_OIL_T) && (CURRENT_MODE != MODE_GEARBOX_T)
+#error "CURRENT_MODE doit valoir MODE_OIL_P, MODE_OIL_T ou MODE_GEARBOX_T"
 #endif
 
 #define NEEDLE_ORANGE 0xF840
@@ -120,10 +122,10 @@ W* wn_draw_needle_press = NULL;
   #define SENSOR_MV_MIN   TEMP_SENSOR_MV_MIN
   #define SENSOR_MV_MAX   TEMP_SENSOR_MV_MAX
   #define MODE_NAME       "OIL_T"
-#else /* MODE_TRANS_T : meme sonde, meme echelle que OIL_T */
+#else /* MODE_GEARBOX_T : meme sonde, meme echelle que OIL_T */
   #define SENSOR_MV_MIN   TEMP_SENSOR_MV_MIN
   #define SENSOR_MV_MAX   TEMP_SENSOR_MV_MAX
-  #define MODE_NAME       "TRANS_T"
+  #define MODE_NAME       "GEARBOX_T"
 #endif
 
 float current_pressure = 7.0f;
@@ -236,8 +238,8 @@ void draw_background()
     mcpy(b0, ((current_theme == DAY_THEME) ? bg_gauge_oil_t : bg_gauge_oil_t_dark), LCD_SZ);
     break;
 
-    case MODE_TRANS_T:
-    mcpy(b0, ((current_theme == DAY_THEME) ? bg_trans_temp : bg_trans_temp_dark), LCD_SZ);
+    case MODE_GEARBOX_T:
+    mcpy(b0, ((current_theme == DAY_THEME) ? bg_gearbox_temp : bg_gearbox_temp_dark), LCD_SZ);
     break;
   }
 }

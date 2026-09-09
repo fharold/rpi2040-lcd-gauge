@@ -1,3 +1,0 @@
-# Firmware images are versioned in uf2/ : keep git from treating them as text
-# (no diff, no eol conversion).
-*.uf2 binary

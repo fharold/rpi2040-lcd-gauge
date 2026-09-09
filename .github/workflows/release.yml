@@ -1,0 +1,70 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  firmware:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install ARM toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake gcc-arm-none-eabi libnewlib-arm-none-eabi \
+            libstdc++-arm-none-eabi-newlib
+
+      # Pinned to the SDK version the project is developed against.
+      # tinyusb is a submodule and is required by pico_enable_stdio_usb.
+      - name: Checkout pico-sdk
+        uses: actions/checkout@v4
+        with:
+          repository: raspberrypi/pico-sdk
+          ref: 2.2.0
+          path: pico-sdk
+          submodules: true
+
+      # PICO_BOARD is deliberately left alone: the project builds against the
+      # generic 'pico' board, same as locally.
+      - name: Build all variants
+        env:
+          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --parallel
+
+      - name: Collect firmware
+        run: |
+          mkdir -p dist
+          for f in main_oil_t main_gearbox_t main_oil_p; do
+            test -f "build/$f.uf2" || { echo "missing build/$f.uf2"; exit 1; }
+            cp "build/$f.uf2" dist/
+          done
+          ls -l dist
+
+      # Available on every run, tag or not, so a build can be checked without
+      # publishing anything.
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware
+          path: dist/*.uf2
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*.uf2 \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes

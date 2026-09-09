@@ -5,8 +5,8 @@
 #### flashes a build variant onto an RP2040 in BOOTSEL mode
 
 - `pilo` without argument lists the three variants and where their `.uf2` was found
-- variants: `oil_t` (engine oil temp), `trans_t` (gearbox oil temp), `oil_p` (engine oil pressure)
-- looks in `build/` first, then `uf2/`; warns if `main.c` / `CMakeLists.txt` is newer than the `.uf2`
+- variants: `oil_t` (engine oil temp), `gearbox_t` (gearbox oil temp), `oil_p` (engine oil pressure)
+- looks in `build/`; warns if `main.c` / `CMakeLists.txt` is newer than the `.uf2`
 - an explicit file also works: `pilo build/main_oil_p.uf2`
 - `sudo` is used on Linux only; override with `PILO_SUDO=0` / `PILO_SUDO=1`
 - with several boards in BOOTSEL, pick one: `PILO_BUS=1 PILO_ADDRESS=5 pilo oil_p`
@@ -14,6 +14,20 @@
 
 To get the board into BOOTSEL: hold BOOT while plugging it in, or double-tap
 reset - the build links `pico_bootsel_via_double_reset`.
+
+
+## pirel
+
+### usage: pirel TAG [gh release create args...]
+#### example: pirel v1.0.0
+#### builds the three variants and publishes them as a GitHub release
+
+- requires the GitHub CLI (`gh`) and `PICO_SDK_PATH`
+- refuses to run on a dirty working tree
+- extra arguments go to `gh release create`: `pirel v1.0.0-rc1 --prerelease`
+- for official releases prefer pushing a `v*` tag and letting
+  `.github/workflows/release.yml` build it, so the build does not depend on
+  one machine
 
 
 ## pigsh

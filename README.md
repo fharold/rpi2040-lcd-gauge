@@ -42,7 +42,7 @@ The firmware is built in three variants, selected at compile time by
 | Variant | `CURRENT_MODE` | Gauge | Output |
 | ------- | -------------- | ----- | ------ |
 | engine oil temperature | `MODE_OIL_T` | 50-140 °C | `main_oil_t.uf2` |
-| gearbox oil temperature | `MODE_TRANS_T` | 50-140 °C | `main_trans_t.uf2` |
+| gearbox oil temperature | `MODE_GEARBOX_T` | 50-140 °C | `main_gearbox_t.uf2` |
 | engine oil pressure | `MODE_OIL_P` | -0.5-6.5 bar | `main_oil_p.uf2` |
 
 **The sensor is always wired to SENSOR1 (GP28), in every variant.** What the
@@ -90,8 +90,7 @@ Alternatively, `export PICO_SDK_FETCH_FROM_GIT=1` lets CMake clone it. Then:
 
 `mkdir build;cd build;cmake ..;make`
 
-This produces the three `.uf2` files in `build/`, and copies each one to
-`uf2/`.
+This produces the three `.uf2` files in `build/`.
 
 ## Flashing the image
 
@@ -99,7 +98,7 @@ Put the board in BOOTSEL — hold BOOT while plugging it in, or double-tap reset
 as the build links `pico_bootsel_via_double_reset` — then:
 
 `./tool/pilo oil_t`     engine oil temperature
-`./tool/pilo trans_t`   gearbox oil temperature
+`./tool/pilo gearbox_t` gearbox oil temperature
 `./tool/pilo oil_p`     engine oil pressure
 
 `./tool/pilo` with no argument lists the variants and where each `.uf2` was
@@ -115,11 +114,37 @@ The equivalent by hand:
 list them with `picotool info -a` and target one with
 `--bus <bus> --address <addr>`.
 
+## Releases
+
+Firmware images are not versioned in git; they are attached to GitHub
+releases. Pushing a `v*` tag builds the three variants on GitHub and publishes
+them:
+
+`git tag v1.0.0 && git push origin v1.0.0`
+
+The workflow is `.github/workflows/release.yml`. It also runs on
+`workflow_dispatch`, and every run uploads the `.uf2` files as build
+artifacts, so a build can be checked without publishing anything.
+
+To publish from this machine instead — same three variants, built locally and
+uploaded with the GitHub CLI:
+
+`./tool/pirel v1.0.0`
+
+`pirel` refuses to run on a dirty working tree, and passes extra arguments
+through to `gh release create` (`--prerelease`, `--draft`, `--notes ...`).
+Prefer the tag-triggered workflow for anything official: it does not depend on
+this machine.
+
+To flash an image downloaded from a release, give `pilo` its path:
+
+`./tool/pilo ~/Downloads/main_oil_p.uf2`
+
 ## Tools
 
-Scripts for flashing, serial shell, LCD screenshots, and converting images and
-fonts into header files live in `tool/`, documented in `tool/tools.md`. The
-images and fonts themselves are in `img/`.
+Scripts for flashing, releasing, serial shell, LCD screenshots, and converting
+images and fonts into header files live in `tool/`, documented in
+`tool/tools.md`. The images and fonts themselves are in `img/`.
 
 ## Known issues
 

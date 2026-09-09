@@ -6,7 +6,7 @@
 #          pilo                 # lists the available variants
 #
 #   variants: oil_t    engine oil temperature   (main_oil_t.uf2)
-#             trans_t  gearbox oil temperature  (main_trans_t.uf2)
+#             gearbox_t  gearbox oil temperature  (main_gearbox_t.uf2)
 #             oil_p    engine oil pressure      (main_oil_p.uf2)
 #
 #   A .uf2 file name or path is also accepted directly:
@@ -19,7 +19,7 @@
 #
 set -uo pipefail
 
-VARIANTS="oil_t trans_t oil_p"
+VARIANTS="oil_t gearbox_t oil_p"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -27,12 +27,11 @@ ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 die() { printf '%s\n' "$*" >&2; exit 1; }
 
 # ---- locate a .uf2 for the requested variant -------------------------------
-# Looks in build/ first (freshly compiled), then uf2/ (post-build copy).
+# Built firmware lives in build/. Release downloads are flashed by passing
+# their path directly.
 find_uf2() {
-  local name="$1" c
-  for c in "$ROOT/build/main_$name.uf2" "$ROOT/uf2/main_$name.uf2"; do
-    [ -f "$c" ] && { printf '%s\n' "$c"; return 0; }
-  done
+  local c="$ROOT/build/main_$1.uf2"
+  [ -f "$c" ] && { printf '%s\n' "$c"; return 0; }
   return 1
 }
 
@@ -43,9 +42,9 @@ usage() {
   echo "available variants:"
   for v in $VARIANTS; do
     if f="$(find_uf2 "$v")"; then
-      printf '  %-8s %s\n' "$v" "$f"
+      printf '  %-10s %s\n' "$v" "$f"
     else
-      printf '  %-8s (not built)\n' "$v"
+      printf '  %-10s (not built)\n' "$v"
     fi
   done
   echo

@@ -52,19 +52,8 @@ function(universal_gauges_variant TARGET MODE)
 
     pico_bootsel_via_double_reset
   )
-
-  # Copy the .uf2 next to the sources, in uf2/. The directory is created
-  # first: it is not in git when empty, so it is missing on a fresh clone.
-  add_custom_command(
-    TARGET ${TARGET} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory
-            ${CMAKE_CURRENT_SOURCE_DIR}/uf2
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}.uf2
-            ${CMAKE_CURRENT_SOURCE_DIR}/uf2/${TARGET}.uf2
-  )
 endfunction()
 
 universal_gauges_variant(main_oil_t   MODE_OIL_T)    # engine oil temperature
-universal_gauges_variant(main_trans_t MODE_TRANS_T)  # gearbox oil temperature
+universal_gauges_variant(main_gearbox_t MODE_GEARBOX_T) # gearbox oil temperature
 universal_gauges_variant(main_oil_p   MODE_OIL_P)    # engine oil pressure
