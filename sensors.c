@@ -44,6 +44,25 @@ static float mv_to_range(uint16_t mv, uint16_t mv_min, uint16_t mv_max,
   return out_min + (out_max - out_min) * factor;
 }
 
+/* mV -> engineering units through a calibration curve, interpolated between
+   the two points that frame the reading. Outside the table the reading is
+   clamped to its ends. The table has to be ordered by rising mV. */
+static float mv_through_curve(uint16_t mv, const curve_point_t* c, uint8_t n) {
+  if (n == 0)          { return 0.f; }
+  if (mv <= c[0].mv)   { return c[0].value; }
+  if (mv >= c[n-1].mv) { return c[n-1].value; }
+
+  uint8_t i = 1;
+  while (i < (uint8_t)(n - 1) && mv > c[i].mv) { i++; }
+
+  const uint16_t lo_mv = c[i-1].mv;
+  const uint16_t hi_mv = c[i].mv;
+  if (hi_mv <= lo_mv) { return c[i].value; }
+
+  const float factor = (float)(mv - lo_mv) / (float)(hi_mv - lo_mv);
+  return c[i-1].value + (c[i].value - c[i-1].value) * factor;
+}
+
 /* Reads one channel and fills the three fields in one go. */
 static void read_input(analog_reading_t* r, uint8_t channel,
                        uint16_t mv_min, uint16_t mv_max) {
@@ -66,6 +85,10 @@ void sensors_update(void) {
 }
 
 float sensors_value(void) {
+  if (gauge_variant.curve != NULL) {
+    return mv_through_curve(sensor1.mv,
+                            gauge_variant.curve, gauge_variant.curve_len);
+  }
   return mv_to_range(sensor1.mv,
                      gauge_variant.sensor_mv_min, gauge_variant.sensor_mv_max,
                      gauge_variant.value_min, gauge_variant.value_max);

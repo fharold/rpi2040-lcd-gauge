@@ -3,7 +3,7 @@
 Basic and versatile gauges based on the WAVESHARE RP2040-LCD-1.28 module.
 A small HAT enhances it:
 
-- 2 analog sensor inputs (divided 1:2, 5 V sensor supply)
+- 2 analog sensor inputs (divider stuffed to suit the sender, 5 V supply)
 - 2 digital inputs (level shifted)
 - 1 ambient light sensor
 - 1 button
@@ -82,9 +82,24 @@ the module's own regulator.
 
 ### Input and output stages
 
-**Analog inputs.** Each is a 100 k / 100 k divider to GND (R15/R16, R17/R18),
-so the ADC sees half the sensor voltage: a 0-5 V sender spans 0-2.5 V at the
-pin. The sensor is powered from the HAT's 5 V.
+**Analog inputs.** Each is a divider to GND: R15 in series, the ADC pin, then
+R16 to ground (R17/R18 on the second channel). **The two resistors are stuffed
+to suit the sender the board is built for**, so a board and the firmware
+variant flashed on it have to match.
+
+*Pressure board, R15 = R16 = 100 k.* The sender has a voltage output and the
+divider simply halves it: a 0.5-4.5 V sender spans 250-2250 mV at the pin.
+Source impedance there is 50 k.
+
+*Temperature board, R15 = 6 k, R16 = 10 k.* The sender is resistive and wired
+between the connector's +5 V and its signal pin, so it becomes the top of the
+divider and the pin reads
+
+    V = 5 V x 10k / (R_sender + 16k)
+
+which is 3.125 V with the sender shorted — comfortably under the 3.3 V full
+scale — and 0 V with it open or its wire broken. Source impedance runs 4 to
+7 k over the sender's range.
 
 **Digital inputs.** Each is clamped by an SMAJ18A, divided 10 k / 100 k,
 clamped again by a BZX84C12, and drives the gate of a BSS138 whose drain is
@@ -133,7 +148,9 @@ The firmware is built in three variants, selected at compile time by
 
 **The sensor is always wired to SENSOR1 (GP28), in every variant.** What the
 variant changes is the input span applied to that reading, the quantity it
-feeds, and the gauge face drawn behind the needle. SENSOR2 is not used by any
+feeds, and the gauge face drawn behind the needle. It also has to match how
+the board's input divider is stuffed, see
+[Input and output stages](#input-and-output-stages). SENSOR2 is not used by any
 variant; its pad is only configured as an analog input so it stays
 high-impedance.
 
@@ -150,9 +167,34 @@ All in `config.h`. Input spans, in millivolts, measured at the ADC pin:
 
 | Define | Default | Meaning |
 | ------ | ------- | ------- |
-| `TEMP_SENSOR_MV_MIN` / `_MAX` | 640 / 2900 | temperature sensor output range |
+| `TEMP_SENSOR_MV_MIN` / `_MAX` | 1470 / 2960 | ends of the temperature curve below |
 | `PRESSURE_SENSOR_MV_MIN` / `_MAX` | 250 / 2250 | pressure sensor output range |
 | `ALS_MV_MIN` / `_MAX` | 0 / 2700 | ambient light sensor output range |
+
+The temperature sender is an NTC and is nowhere near linear, so it is
+described by `TEMP_SENSOR_CURVE`, a table of measured (mV, °C) points ordered
+by rising mV:
+
+| mV at GP28 | °C | sender |
+| ---------- | -- | ------ |
+| 1470 | 50 | 17.9 k |
+| 1770 | 60 | 12.3 k |
+| 2030 | 70 | 8.61 k |
+| 2260 | 80 | 6.14 k |
+| 2450 | 90 | 4.43 k |
+| 2590 | 100 | 3.32 k |
+| 2700 | 110 | 2.55 k |
+| 2780 | 120 | 1.91 k |
+| 2860 | 130 | 1.51 k |
+| 2910 | 140 | 1.17 k |
+| 2960 | 150 | 0.90 k |
+
+Between two points the reading is interpolated, outside the table it is
+clamped. `TEMP_SENSOR_MV_MIN` and `_MAX` have to stay equal to the first and
+last mV of the table: they are what the percentage readout uses. Re-measuring
+the sender means replacing the rows, nothing else. A variant whose
+`gauge_variant` carries no curve — the pressure one — keeps the plain linear
+span.
 
 Display scales, in engineering units:
 
@@ -163,11 +205,31 @@ Display scales, in engineering units:
 
 A reading below `_MIN` or above `_MAX` is clamped, not extrapolated. Change the
 mV values to match a different sensor; change the unit values only if the gauge
-face graduations change too.
+face graduations change too. Note that the sender reaches 150 °C while the face
+stops at 140: the needle parks on the last graduation above that.
 
 The ADC is read every `ADC_PERIOD_MS` (100 ms), oversampled `ADC_SAMPLES` (8)
 times per reading. The ambient light sensor drives the backlight between
 `MIN_BRIGHTNESS` and `MAX_BRIGHTNESS`.
+
+### Day and night
+
+The same ambient light reading picks the gauge face: the `_dark` faces and the
+orange needle below `THEME_NIGHT_BELOW` (20 %), the day faces and the red
+needle above `THEME_DAY_ABOVE` (25 %).
+
+| Define | Default | Meaning |
+| ------ | ------- | ------- |
+| `THEME_NIGHT_BELOW` | 20 | % of the ALS span under which the night face is used |
+| `THEME_DAY_ABOVE` | 25 | % over which the day face is used |
+| `THEME_HOLD_MS` | 2000 | how long a reading has to disagree with the face on screen |
+
+Between the two thresholds nothing changes, so a reading sitting on the edge
+cannot flip the face back and forth; set them equal for a plain single
+threshold. On top of that the new reading has to hold for `THEME_HOLD_MS`
+before the face is swapped, so a bridge or a row of trees does not repaint the
+screen. A demo build holds the light at `DEMO_LIGHT_PERCENT` (100 %) and so
+always shows the day face; lower it below 20 to look at the night one.
 
 ## Building the image
 
@@ -261,17 +323,22 @@ project for the HAT is in `pcb/`.
 ## Known issues
 
 - battery display has to be adjusted depending on battery type
-- `NIGHT_THEME` and the `_dark` gauge faces exist but are never selected:
-  `gauge_theme` stays on `DAY_THEME`
-- a disconnected sensor leaves its input floating, which reads as a low but
-  plausible value rather than as a fault
-- the analog inputs are named `SENSOR*_FILTERED` but there is no filter: the
-  divider presents 50 k to the ADC pin with no capacitor across it, more than
-  the RP2040 ADC would like
+- a broken sender wire reads a clean 0 mV, R16 pulling the pin down, and on a
+  temperature board a shorted sender reads 3125 mV. Both fall outside the
+  calibration, so both are recognisable, but the firmware only clamps them to
+  the ends of the scale instead of showing a fault
+- the analog inputs are named `SENSOR*_FILTERED` but there is no filter: no
+  capacitor sits across the divider. On a pressure board it also presents 50 k
+  to the ADC pin, more than the RP2040 would like; the 6 k / 10 k of a
+  temperature board is fine
+- nothing on a board says which sender it is stuffed for, and nothing stops
+  `pilo` from flashing the wrong variant onto it
 - the layout is one annotation behind the schematic. The catch diode is D7 in
   the schematic and still D4 on the board, which therefore carries two D4s,
   and SW1 is `SW` there. The gerbers were plotted before the last schematic
   edits, so re-annotate and re-plot before ordering
+- the schematic and the BOM give R15 to R18 as 100 k, the pressure stuffing;
+  the 6 k / 10 k of a temperature board is only written down in `config.h`
 
 ## Credits
 

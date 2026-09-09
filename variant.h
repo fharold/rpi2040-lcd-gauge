@@ -22,6 +22,14 @@
 #error "CURRENT_MODE doit valoir MODE_OIL_P, MODE_OIL_T ou MODE_GEARBOX_T"
 #endif
 
+/* One point of a sensor curve: what the ADC reads, and what it means. */
+typedef struct {
+  uint16_t mv;
+  float    value;
+} curve_point_t;
+
+#define CURVE_LEN(a) ((uint8_t)(sizeof(a) / sizeof((a)[0])))
+
 /* What separates one gauge from another: the span the sensor delivers, the
    scale the needle sweeps, and the face drawn behind it. The sensor is always
    wired to SENSOR1 (GP28), in every variant.
@@ -38,6 +46,12 @@ typedef struct {
   float          value_step;     /* reading granularity, 0 = continuous     */
   const uint8_t* face_day;       /* background image, day theme             */
   const uint8_t* face_night;     /* background image, night theme           */
+
+  /* Sensors that are not linear carry a calibration curve, ordered by rising
+     mV. NULL means the reading is linear over [sensor_mv_min, sensor_mv_max]
+     -> [value_min, value_max]. */
+  const curve_point_t* curve;
+  uint8_t              curve_len;
 } gauge_variant_t;
 
 /* The one variant this firmware was built for. */

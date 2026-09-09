@@ -46,8 +46,11 @@ uint8_t gauge_theme = DAY_THEME;
 static uint8_t*  b0 = NULL;
 static uint32_t* b1 = NULL;
 
-static float   gauge_value       = 0.f;
+static float   gauge_value        = 0.f;
 static uint8_t current_brightness = MIN_BRIGHTNESS;
+
+/* When the light reading first started asking for the other face. */
+static uint32_t theme_pending_since = 0;
 
 static void draw_background(void) {
   memcpy(b0,
@@ -104,9 +107,34 @@ void gauge_set_value(float value) {
   gauge_value = (step > 0.f) ? truncf(value / step) * step : value;
 }
 
+/* Which face a reading calls for. Between the two thresholds it asks for
+   whatever is already on screen, which is what makes the switch hysteretic. */
+static uint8_t theme_wanted(uint8_t als_percent, uint8_t current) {
+  if (als_percent < THEME_NIGHT_BELOW) { return NIGHT_THEME; }
+  if (als_percent > THEME_DAY_ABOVE)   { return DAY_THEME; }
+  return current;
+}
+
+/* Swaps the face once the reading has disagreed with it for long enough. */
+static void theme_update(uint8_t als_percent) {
+  const uint8_t  wanted = theme_wanted(als_percent, gauge_theme);
+  const uint32_t now    = to_ms_since_boot(get_absolute_time());
+
+  if (wanted == gauge_theme) {
+    theme_pending_since = now;   /* the reading agrees, restart the wait */
+    return;
+  }
+  if (now - theme_pending_since >= THEME_HOLD_MS) {
+    gauge_theme         = wanted;
+    theme_pending_since = now;
+  }
+}
+
 void gauge_set_light(uint8_t als_percent) {
   current_brightness = MIN_BRIGHTNESS
     + (uint8_t)(((uint32_t)als_percent * (MAX_BRIGHTNESS - MIN_BRIGHTNESS)) / 100u);
+
+  theme_update(als_percent);
 }
 
 void gauge_draw(void) {

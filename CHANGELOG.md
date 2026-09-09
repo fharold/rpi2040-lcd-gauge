@@ -7,6 +7,16 @@
   main.c is now the bring-up order and the main loop
 - the needle is clamped to the two ends of the gauge face instead of to zero,
   so the -0.5 to 0 bar part of the pressure scale is finally reachable
+- the input divider is stuffed per sender: 100k/100k on a pressure board, which
+  halves a voltage output, and 6k/10k on a temperature board, where the
+  resistive sender is the top of the divider. A board and the variant flashed
+  on it have to match
+- temperature conversion follows a measured NTC curve (TEMP_SENSOR_CURVE, 11
+  points from 50 to 150 C) instead of a straight line, which read up to 35 C
+  too high in the middle of the range. Variants without a curve stay linear
+- the day / night face now follows the ambient light: night under 20 %, day
+  over 25 %, with a 2 s hold before either swap. NIGHT_THEME and the _dark
+  faces were dead code until now
 - support for the RP2040-TOUCH-LCD-1.28 dropped, with the CST816S driver: its
   button is on GP16, which the HAT uses as digital input 1. The board is now
   the RP2040-LCD-1.28, the I2C scan is only a boot diagnostic

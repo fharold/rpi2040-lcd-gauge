@@ -1,5 +1,12 @@
+#include <stddef.h>
+
 #include "variant.h"
 #include "config.h"
+
+/* Shared by both temperature variants: same probe, same wiring. */
+#if CURRENT_MODE != MODE_OIL_P
+static const curve_point_t temp_curve[] = TEMP_SENSOR_CURVE;
+#endif
 
 /* Only the two images this variant needs are included, so only they are
    compiled into the binary. Each face is LCD_SZ bytes (115200), which is why
@@ -19,6 +26,8 @@ const gauge_variant_t gauge_variant = {
   .value_step    = PRESS_STEP,
   .face_day      = bg_gauge_oil_p,
   .face_night    = bg_gauge_oil_p_dark,
+  .curve         = NULL,   /* the pressure sender is linear */
+  .curve_len     = 0,
 };
 
 #elif CURRENT_MODE == MODE_OIL_T
@@ -35,6 +44,8 @@ const gauge_variant_t gauge_variant = {
   .value_step    = TEMP_STEP,
   .face_day      = bg_gauge_oil_t,
   .face_night    = bg_gauge_oil_t_dark,
+  .curve         = temp_curve,
+  .curve_len     = CURVE_LEN(temp_curve),
 };
 
 #else /* MODE_GEARBOX_T: same probe and same scale as OIL_T, other face */
@@ -51,6 +62,8 @@ const gauge_variant_t gauge_variant = {
   .value_step    = TEMP_STEP,
   .face_day      = bg_gearbox_temp,
   .face_night    = bg_gearbox_temp_dark,
+  .curve         = temp_curve,
+  .curve_len     = CURVE_LEN(temp_curve),
 };
 
 #endif
