@@ -30,9 +30,12 @@
 #include "img/bg_gearbox_temp_dark.h"
 #include "img/bg_gauge_oil_t_dark.h"
 #include "img/bg_gauge_oil_p_dark.h"
-#include "img/font34.h"//touche pas à ça petit con
-#include "img/font40.h"//touche pas à ça petit con
-//#include "img/font48.h"
+/* Generated font data. These headers carry DEFINITIONS, not declarations:
+   font34.h defines font_t Font12, Font16, Font20, Font24 and Font34, and
+   font40.h defines Font40. w.c uses Font16, so dropping these includes
+   breaks the link. Do not remove. */
+#include "img/font34.h"
+#include "img/font40.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846

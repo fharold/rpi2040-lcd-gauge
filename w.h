@@ -5,7 +5,6 @@
 #include "pico/binary_info.h"
 #include "lcd.h"
 
-
 #define W_BOX_CHILDREN 4
 
 typedef enum {
