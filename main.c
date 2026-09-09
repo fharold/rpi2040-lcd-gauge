@@ -33,6 +33,9 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 #include "img/bg_trans_temp.h"
 #include "img/bg_gauge_oil_t.h"
 #include "img/bg_gauge_oil_p.h"
+#include "img/bg_trans_temp_dark.h"
+#include "img/bg_gauge_oil_t_dark.h"
+#include "img/bg_gauge_oil_p_dark.h"
 #include "img/font34.h"//touche pas à ça petit con
 #include "img/font40.h"//touche pas à ça petit con
 #include "lib/draw.h"
@@ -54,11 +57,11 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 
 #define NEEDLE_MAX_ANGLE 135.f
 #define NEEDLE_MIN_ANGLE 45.f
-#define NEEDLE_UPPER_LENGTH 135.f
+#define NEEDLE_UPPER_LENGTH 128.f
 #define NEEDLE_LOWER_LENGTH 32.f
 
 #define MIN_TEMP 50.f
-#define MAX_TEMP 130.f
+#define MAX_TEMP 140.f
 
 #define MIN_PRESS -0.5f
 #define MAX_PRESS 6.5f
@@ -72,7 +75,9 @@ W* wl[1] = {NULL};
 #define MODE_OIL_P 0
 #define MODE_OIL_T 1
 #define MODE_TRANS_T 2
-#define CURRENT_MODE MODE_OIL_P
+#define CURRENT_MODE MODE_OIL_T
+
+#define NEEDLE_ORANGE 0xF840
 
 typedef struct {
   Vec2 start;
@@ -86,13 +91,21 @@ typedef struct {
 #define TFOWI 26
 #define TFOSWI 14
 
+#define DAY_THEME (uint8_t)0
+#define NIGHT_THEME (uint8_t)1
+
+#define MIN_BRIGHTNESS (uint8_t)1
+#define MAX_BRIGHTNESS (uint8_t)100
+
 float theta = 0.0f;
 float theta1 = 0.0f;
 float theta2 = 0.0f;
 float theta3 = 0.0f;
 float theta_d = 1.2f;
 float current_pressure = 7.0f;
-int16_t current_temperature = 0;
+int16_t current_temperature = 130;
+uint8_t current_brightness = MIN_BRIGHTNESS;
+uint8_t current_theme = DAY_THEME;
 
 extern Vec2 vO;
 
@@ -165,8 +178,8 @@ void draw_needle_temp(){
   lower_end.x = center.x + (int)(NEEDLE_LOWER_LENGTH * cosf(angle_deg + PI));
   lower_end.y = center.y - (int)(NEEDLE_LOWER_LENGTH * sinf(angle_deg + PI));
   
-  draw_line(center, upper_end, RED, 6);
-  draw_line(center, lower_end, RED, 6);
+  draw_line(center, upper_end, ((current_theme == DAY_THEME) ? RED : NEEDLE_ORANGE), 6);
+  draw_line(center, lower_end, ((current_theme == DAY_THEME) ? RED : NEEDLE_ORANGE), 6);
 }
 
 void draw_needle_press(){
@@ -185,23 +198,23 @@ void draw_needle_press(){
   lower_end.x = center.x + (int)(NEEDLE_LOWER_LENGTH * cosf(angle_deg + PI));
   lower_end.y = center.y - (int)(NEEDLE_LOWER_LENGTH * sinf(angle_deg + PI));
   
-  draw_line(center, upper_end, RED, 6);
-  draw_line(center, lower_end, RED, 6);
+  draw_line(center, upper_end, ((current_theme == DAY_THEME) ? RED : NEEDLE_ORANGE), 6);
+  draw_line(center, lower_end, ((current_theme == DAY_THEME) ? RED : NEEDLE_ORANGE), 6);
 }
 
 void draw_background()
 {
   switch (CURRENT_MODE) {
     case MODE_OIL_P:
-    mcpy(b0,bg_gauge_oil_p,LCD_SZ);
+    mcpy(b0, ((current_theme == DAY_THEME) ? bg_gauge_oil_p : bg_gauge_oil_p_dark), LCD_SZ);
     break;
 
     case MODE_OIL_T:
-    mcpy(b0,bg_gauge_oil_t,LCD_SZ);
+    mcpy(b0, ((current_theme == DAY_THEME) ? bg_gauge_oil_t : bg_gauge_oil_t_dark), LCD_SZ);
     break;
 
     case MODE_TRANS_T:
-    mcpy(b0,bg_trans_temp,LCD_SZ);
+    mcpy(b0, ((current_theme == DAY_THEME) ? bg_trans_temp : bg_trans_temp_dark), LCD_SZ);
     break;
   }
 }
@@ -232,9 +245,8 @@ int main(void)
 
   i2c_scan();
   lcd_init();
-  lcd_set_brightness(255);
   b0 = malloc(LCD_SZ);
-  b1 = (uint32_t*)b0;
+  b1 = (uint32_t*)b0; 
   if(b0==0){printf("b0==0!\n");}
   uint32_t o = 0;
   lcd_setimg((uint16_t*)b0);
@@ -269,15 +281,16 @@ int main(void)
   
   while(true){
     for(int i=0;i<LCD_SZ/4;i++){b1[i]=0x00;}  //clear buffer faster
+    lcd_set_brightness(current_brightness);
     wdraw(&wroot);
     lcd_display(b0);
-    current_temperature++;
+    // current_temperature++;
 
     if (current_temperature > 150) {
-      current_temperature = -10;
+      current_temperature = 50;
     }
 
-    // current_pressure = current_pressure + 0.1f;
+    current_pressure = current_pressure + 0.1f;
 
     if (current_pressure > 7.f) {
       current_pressure = 0.f;
